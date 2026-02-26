@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---- NextAuth required tables ----
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---- Application tables ----
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String?   @map("password_hash")
+  image         String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  accounts      Account[]
+  sessions      Session[]
+  conversations Conversation[]
+
+  @@map("users")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  title     String   @default("New Conversation")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  threads Thread[]
+
+  @@map("conversations")
+}
+
+model Thread {
+  id              String       @id @default(cuid())
+  conversationId  String       @map("conversation_id")
+  parentThreadId  String?      @map("parent_thread_id")
+  parentMessageId String?      @map("parent_message_id")
+  highlightedText String?      @map("highlighted_text") @db.Text
+  status          ThreadStatus @default(ACTIVE)
+  depth           Int          @default(0)
+  createdAt       DateTime     @default(now()) @map("created_at")
+  mergedAt        DateTime?    @map("merged_at")
+
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  parentThread   Thread?       @relation("ThreadTree", fields: [parentThreadId], references: [id])
+  childThreads   Thread[]      @relation("ThreadTree")
+  parentMessage  Message?      @relation("TangentOrigin", fields: [parentMessageId], references: [id])
+  messages       Message[]
+  mergesAsSource MergeEvent[]  @relation("MergeSource")
+  mergesAsTarget MergeEvent[]  @relation("MergeTarget")
+
+  @@index([conversationId])
+  @@map("threads")
+}
+
+model Message {
+  id        String      @id @default(cuid())
+  threadId  String      @map("thread_id")
+  role      MessageRole
+  content   String      @db.Text
+  createdAt DateTime    @default(now()) @map("created_at")
+  metadata  Json?       @db.JsonB
+
+  thread         Thread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  tangentThreads Thread[]     @relation("TangentOrigin")
+  mergesAfter    MergeEvent[] @relation("MergeAfterMessage")
+
+  @@index([threadId, createdAt])
+  @@map("messages")
+}
+
+model MergeEvent {
+  id             String   @id @default(cuid())
+  sourceThreadId String   @map("source_thread_id")
+  targetThreadId String   @map("target_thread_id")
+  afterMessageId String   @map("after_message_id")
+  summary        String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  sourceThread Thread  @relation("MergeSource", fields: [sourceThreadId], references: [id])
+  targetThread Thread  @relation("MergeTarget", fields: [targetThreadId], references: [id])
+  afterMessage Message @relation("MergeAfterMessage", fields: [afterMessageId], references: [id])
+
+  @@index([targetThreadId])
+  @@map("merge_events")
+}
+
+enum ThreadStatus {
+  ACTIVE
+  MERGED
+  ARCHIVED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}

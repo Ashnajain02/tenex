@@ -1,26 +1,375 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Claude-inspired palette */
+  --color-bg-base: #FAF9F5;
+  --color-bg-sidebar: #F0EDE8;
+  --color-border: #DDD9D0;
+  --color-text-primary: #1A1A1A;
+  --color-text-secondary: #6B6B6B;
+  --color-accent: #D97757;
+  --color-accent-hover: #C8663F;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D4D0C8; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #BDBAB0; }
+
+/* ── Assistant message markdown ── */
+.prose-tenex {
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: #1A1A1A;
+}
+.prose-tenex h1, .prose-tenex h2, .prose-tenex h3, .prose-tenex h4 {
+  font-weight: 600;
+  margin-top: 1.25em;
+  margin-bottom: 0.4em;
+  line-height: 1.3;
+}
+.prose-tenex h1 { font-size: 1.4em; }
+.prose-tenex h2 { font-size: 1.2em; }
+.prose-tenex h3 { font-size: 1.05em; }
+.prose-tenex p { margin: 0 0 0.75em; }
+.prose-tenex p:last-child { margin-bottom: 0; }
+.prose-tenex strong { font-weight: 700; }
+.prose-tenex em { font-style: italic; }
+.prose-tenex ul, .prose-tenex ol { margin: 0.4em 0 0.75em; padding-left: 1.5em; }
+.prose-tenex li { margin-bottom: 0.3em; }
+.prose-tenex code {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.85em;
+  background: #EDEAE2;
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+}
+.prose-tenex pre {
+  background: #1E1D1A;
+  color: #E8E5DC;
+  border-radius: 8px;
+  padding: 1em 1.1em;
+  overflow-x: auto;
+  margin: 0.75em 0;
+  font-size: 0.85em;
+  line-height: 1.6;
+}
+.prose-tenex pre code { background: none; padding: 0; color: inherit; }
+.prose-tenex blockquote {
+  border-left: 3px solid #DDD9D0;
+  padding-left: 1em;
+  color: #6B6B6B;
+  margin: 0.75em 0;
+}
+.prose-tenex hr { border: none; border-top: 1px solid #DDD9D0; margin: 1em 0; }
+.prose-tenex a { color: #D97757; text-decoration: underline; text-underline-offset: 2px; }
+.prose-tenex table { width: 100%; border-collapse: collapse; margin: 0.75em 0; font-size: 0.9em; }
+.prose-tenex th, .prose-tenex td { border: 1px solid #DDD9D0; padding: 0.4em 0.75em; text-align: left; }
+.prose-tenex th { background: #F0EDE8; font-weight: 600; }
+
+/* Compact prose (tangent popovers) */
+.prose-tenex-sm {
+  font-size: 0.85rem;
+  line-height: 1.65;
+  color: #1A1A1A;
+}
+.prose-tenex-sm h1, .prose-tenex-sm h2, .prose-tenex-sm h3 {
+  font-weight: 600; margin-top: 0.75em; margin-bottom: 0.3em;
+}
+.prose-tenex-sm h1 { font-size: 1.15em; }
+.prose-tenex-sm h2 { font-size: 1.0em; }
+.prose-tenex-sm h3 { font-size: 0.95em; }
+.prose-tenex-sm p { margin: 0 0 0.5em; }
+.prose-tenex-sm p:last-child { margin-bottom: 0; }
+.prose-tenex-sm strong { font-weight: 700; }
+.prose-tenex-sm code {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.82em; background: #EDEAE2; border-radius: 4px; padding: 0.1em 0.35em;
+}
+.prose-tenex-sm pre {
+  background: #1E1D1A; color: #E8E5DC; border-radius: 6px;
+  padding: 0.75em; overflow-x: auto; margin: 0.5em 0; font-size: 0.82em;
+}
+.prose-tenex-sm pre code { background: none; padding: 0; color: inherit; }
+.prose-tenex-sm ul, .prose-tenex-sm ol { margin: 0.3em 0 0.5em; padding-left: 1.25em; }
+.prose-tenex-sm li { margin-bottom: 0.15em; }
+
+/* ── KaTeX math rendering ── */
+.prose-tenex .katex,
+.prose-tenex-sm .katex {
+  font-size: 1.05em;
+  color: var(--color-text-primary);
+}
+/* Display (block) equations — scrollable if they overflow */
+.prose-tenex .katex-display,
+.prose-tenex-sm .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 0.9em 0;
+  padding: 0.5em 0;
+}
+.prose-tenex .katex-display > .katex,
+.prose-tenex-sm .katex-display > .katex {
+  font-size: 1.15em;
+}
+
+/* ── Code execution UI ── */
+.code-mode-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.code-mode-toggle:hover {
+  background: var(--color-bg-sidebar);
+}
+.code-mode-toggle.active {
+  background: var(--color-accent);
+  color: white;
+  border-color: var(--color-accent);
+}
+/* ── CodeMirror overrides ── */
+.cm-editor.cm-focused {
+  outline: none !important;
+}
+.cm-scroller::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.cm-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cm-scroller::-webkit-scrollbar-thumb {
+  background: #3A3935;
+  border-radius: 99px;
+}
+.cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: #4A4945;
+}
+.prose-tenex .cm-editor,
+.prose-tenex-sm .cm-editor {
+  border-radius: 0 0 8px 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Landing page styles
+   ═══════════════════════════════════════════════════════════════════ */
+
+.landing-page {
+  background: #FFFCF8;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Scroll-triggered fade-in ── */
+.landing-fade-in {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.landing-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Nav links ── */
+.landing-nav-link {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6B6B6B;
+  transition: color 0.15s;
+  text-decoration: none;
+}
+.landing-nav-link:hover {
+  color: #1A1A1A;
+}
+
+/* ── Buttons ── */
+.landing-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: #D97757;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(217, 119, 87, 0.2);
+}
+.landing-btn-primary:hover {
+  background: #C8663F;
+  box-shadow: 0 4px 12px rgba(217, 119, 87, 0.3);
+  transform: translateY(-1px);
+}
+
+.landing-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1A1A1A;
+  background: transparent;
+  border: 1.5px solid #DDD9D0;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+.landing-btn-secondary:hover {
+  border-color: #D97757;
+  color: #D97757;
+  transform: translateY(-1px);
+}
+
+.landing-btn-lg {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  border-radius: 12px;
+}
+
+/* ── Hero badge ── */
+.landing-badge {
+  background: rgba(217, 119, 87, 0.08);
+  color: #D97757;
+  border: 1px solid rgba(217, 119, 87, 0.15);
+}
+
+/* ── Hero glow ── */
+.landing-hero-glow {
+  position: absolute;
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 800px;
+  height: 600px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(217, 119, 87, 0.08) 0%,
+    rgba(217, 119, 87, 0.03) 40%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+/* ── Hero mockup ── */
+.landing-hero-mockup {
+  position: relative;
+  max-width: 960px;
+  margin: 0 auto;
+}
+.landing-hero-mockup::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, rgba(217, 119, 87, 0.3), rgba(217, 119, 87, 0.05));
+  z-index: -1;
+  filter: blur(1px);
+}
+
+/* ── Feature cards ── */
+.landing-feature-card {
+  padding: 2rem;
+  border-radius: 16px;
+  border: 1px solid #EDE9E3;
+  background: #FFFCF8;
+  transition: all 0.3s ease;
+}
+.landing-feature-card:hover {
+  border-color: rgba(217, 119, 87, 0.3);
+  box-shadow: 0 8px 32px rgba(217, 119, 87, 0.08);
+  transform: translateY(-4px);
+}
+.landing-feature-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(217, 119, 87, 0.08);
+  color: #D97757;
+}
+
+/* ── Showcase visuals ── */
+.landing-showcase-visual {
+  position: relative;
+}
+
+/* ── How it works step cards ── */
+.landing-step-card {
+  position: relative;
+  padding: 2rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+.landing-step-connector {
+  display: none;
+}
+@media (min-width: 768px) {
+  .landing-step-connector {
+    display: block;
+    position: absolute;
+    top: 50%;
+    right: -2rem;
+    width: 2rem;
+    height: 1px;
+    background: rgba(217, 119, 87, 0.3);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ── CTA card ── */
+.landing-cta-card {
+  text-align: center;
+  padding: 4rem 2rem;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(217, 119, 87, 0.06) 0%, rgba(217, 119, 87, 0.02) 100%);
+  border: 1px solid rgba(217, 119, 87, 0.12);
+}
+
+/* ── Footer links ── */
+.landing-footer-link {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.landing-footer-link:hover {
+  color: #D97757;
+}
+
+/* ── Smooth scroll ── */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }

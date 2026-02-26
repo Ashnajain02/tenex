@@ -1,0 +1,11 @@
+<svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Root node -->
+  <circle cx="8" cy="18" r="3.5" fill="#D97757"/>
+  <!-- Top branch node -->
+  <circle cx="28" cy="9" r="3.5" fill="#D97757"/>
+  <!-- Bottom branch node -->
+  <circle cx="28" cy="27" r="3.5" fill="#D97757"/>
+  <!-- Branch lines -->
+  <path d="M11.5 16.5C16 14 20 10 24.5 9" stroke="#D97757" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M11.5 19.5C16 22 20 26 24.5 27" stroke="#D97757" stroke-width="2.5" stroke-linecap="round"/>
+</svg>
