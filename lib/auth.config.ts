@@ -17,7 +17,7 @@ export const authConfig: NextAuthConfig = {
         return false;
       }
       if (isAuthPage && isLoggedIn) {
-        return Response.redirect(new URL("/", nextUrl));
+        return Response.redirect(new URL("/c", nextUrl));
       }
       return true;
     },

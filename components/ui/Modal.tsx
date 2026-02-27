@@ -27,16 +27,23 @@ export function Modal({ onClose, title, children, className }: ModalProps) {
       />
       <div
         className={cn(
-          "relative z-10 w-full max-w-lg rounded-xl bg-white shadow-xl",
+          "relative z-10 w-full max-w-lg rounded-xl shadow-xl",
           className
         )}
+        style={{ background: "var(--color-bg-elevated)" }}
       >
         {title && (
-          <div className="flex items-center justify-between border-b px-4 py-3">
-            <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+          <div
+            className="flex items-center justify-between px-4 py-3"
+            style={{ borderBottom: "1px solid var(--color-border)" }}
+          >
+            <h2 className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>{title}</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="transition-colors"
+              style={{ color: "var(--color-text-muted)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-text-primary)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-muted)")}
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

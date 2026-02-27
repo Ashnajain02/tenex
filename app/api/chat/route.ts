@@ -378,52 +378,53 @@ export async function POST(req: Request) {
     },
 
     // Allow up to 10 tool-call steps for complex dev workflows
-    stopWhen: stepCountIs(10),
+    stopWhen: stepCountIs(25),
 
     async onFinish({ text, usage, steps }) {
       const elapsed = Date.now() - requestStart;
       const toolCalls = steps?.reduce((sum, s) => sum + (s.toolCalls?.length ?? 0), 0) ?? 0;
       console.log(
         `[chat] Completed in ${elapsed}ms | ` +
-        `tokens: ${usage?.promptTokens ?? "?"}→${usage?.completionTokens ?? "?"} | ` +
+        `tokens: ${usage?.inputTokens ?? "?"}→${usage?.outputTokens ?? "?"} | ` +
         `steps: ${steps?.length ?? "?"} | tool calls: ${toolCalls} | ` +
         `response: ${text ? `${text.length} chars` : "(no text)"}`
       );
 
-      // Only persist if there is actual assistant text (tool-only steps produce no text)
+      // Persist assistant message + bump updatedAt in parallel
+      const writes: Promise<unknown>[] = [
+        prisma.conversation.update({
+          where: { id: thread.conversationId },
+          data: { updatedAt: new Date() },
+        }),
+      ];
       if (text) {
-        await prisma.message.create({
-          data: { threadId, role: "ASSISTANT", content: text },
-        });
+        writes.push(
+          prisma.message.create({
+            data: { threadId, role: "ASSISTANT", content: text },
+          })
+        );
       }
+      await Promise.all(writes);
 
-      // Bump conversation's updatedAt so it surfaces first in the sidebar
-      await prisma.conversation.update({
-        where: { id: thread.conversationId },
-        data: { updatedAt: new Date() },
-      });
-
-      // Auto-title: generate a short name after the first exchange on the main thread
+      // Auto-title: fire-and-forget (don't block the response)
       if (thread.depth === 0 && thread.conversation.title === "New Conversation") {
         const msgCount = await prisma.message.count({ where: { threadId } });
         if (msgCount <= 3) {
-          try {
-            console.log(`[chat] Generating auto-title...`);
-            const { text: rawTitle } = await generateText({
-              model: chatModel,
-              prompt: `In 4 words or fewer, write a short title for a conversation that starts with this message: "${latestContent.slice(0, 300)}". Reply with only the title — no quotes, no punctuation at the end.`,
-            });
-            const title = rawTitle.trim().replace(/^["']|["']$/g, "").slice(0, 50);
-            if (title) {
-              console.log(`[chat] Auto-title: "${title}"`);
-              await prisma.conversation.update({
-                where: { id: thread.conversationId },
-                data: { title },
-              });
-            }
-          } catch (err) {
-            console.error(`[chat] Auto-title failed:`, err);
-          }
+          generateText({
+            model: chatModel,
+            prompt: `In 4 words or fewer, write a short title for a conversation that starts with this message: "${latestContent.slice(0, 300)}". Reply with only the title — no quotes, no punctuation at the end.`,
+          })
+            .then(({ text: rawTitle }) => {
+              const title = rawTitle.trim().replace(/^["']|["']$/g, "").slice(0, 50);
+              if (title) {
+                console.log(`[chat] Auto-title: "${title}"`);
+                return prisma.conversation.update({
+                  where: { id: thread.conversationId },
+                  data: { title },
+                });
+              }
+            })
+            .catch((err) => console.error(`[chat] Auto-title failed:`, err));
         }
       }
     },

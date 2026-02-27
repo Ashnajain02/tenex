@@ -17,7 +17,7 @@ export async function GET(
   const thread = await prisma.thread.findUnique({
     where: { id: threadId },
     include: {
-      conversation: true,
+      conversation: { select: { userId: true } },
       mergesAsTarget: {
         orderBy: { createdAt: "asc" },
       },
@@ -72,23 +72,28 @@ export async function PATCH(
     return NextResponse.json({ archived: [] });
   }
 
-  // BFS to collect all ACTIVE descendants
+  // Batch-fetch ALL active threads in this conversation, then walk in-memory
+  const allActiveThreads = await prisma.thread.findMany({
+    where: { conversationId: thread.conversationId, status: "ACTIVE" },
+    select: { id: true, parentThreadId: true },
+  });
+
+  const childrenMap = new Map<string, string[]>();
+  for (const t of allActiveThreads) {
+    if (t.parentThreadId) {
+      const existing = childrenMap.get(t.parentThreadId) || [];
+      existing.push(t.id);
+      childrenMap.set(t.parentThreadId, existing);
+    }
+  }
+
   const toArchive: string[] = [threadId];
   const queue: string[] = [threadId];
-
   while (queue.length > 0) {
     const currentId = queue.shift()!;
-    const children = await prisma.thread.findMany({
-      where: {
-        parentThreadId: currentId,
-        status: "ACTIVE",
-        conversationId: thread.conversationId,
-      },
-      select: { id: true },
-    });
-    for (const child of children) {
-      toArchive.push(child.id);
-      queue.push(child.id);
+    for (const childId of childrenMap.get(currentId) || []) {
+      toArchive.push(childId);
+      queue.push(childId);
     }
   }
 

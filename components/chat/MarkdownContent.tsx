@@ -1,11 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { CodeBlock } from "./CodeBlock";
-import { SandboxPreview } from "./SandboxPreview";
+import { useUIStore } from "@/store/ui-store";
 
 interface MarkdownContentProps {
   content: string;
@@ -24,10 +25,21 @@ export function MarkdownContent({
   compact,
   conversationId,
 }: MarkdownContentProps) {
+  // During streaming, markdown structure can change dramatically (e.g. a heading
+  // appears, code fences open/close). React's DOM reconciliation can fail when
+  // ReactMarkdown's parse tree shifts. We force a clean remount when the block
+  // structure changes to avoid "insertBefore" errors.
+  const structureKey = useMemo(() => {
+    const fences = (content.match(/```/g) || []).length;
+    const headings = (content.match(/^#{1,6}\s/gm) || []).length;
+    return `${fences}-${headings}`;
+  }, [content]);
+
   return (
     <div className={compact ? "prose-twix-sm" : "prose-twix"}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
+        key={structureKey}
+        remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: false }]]}
         rehypePlugins={[rehypeKatex]}
         components={{
           // Override block code rendering to inject CodeBlock with Run button
@@ -42,6 +54,39 @@ export function MarkdownContent({
 
             const codeString = String(children).replace(/\n$/, "");
 
+            // Interactive file explorer for sandbox directories — store path, user opens via button
+            if (language === "filetree") {
+              // Strip trailing backticks/whitespace that markdown parser may include
+              const cleanPath = codeString.replace(/`+/g, "").trim();
+              const store = useUIStore.getState();
+              if (store.fileBrowserPath !== cleanPath) {
+                store.setFileBrowserPath(cleanPath);
+              }
+              return (
+                <button
+                  onClick={() => {
+                    useUIStore.getState().openDrawerTo("files");
+                  }}
+                  className="my-2 flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition-colors hover:opacity-80"
+                  style={{
+                    background: "var(--color-bg-sidebar)",
+                    border: "1px solid var(--color-border)",
+                    color: "var(--color-text-secondary)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path d="M3.75 3A1.75 1.75 0 002 4.75v3.26a3.235 3.235 0 011.75-.51h12.5c.644 0 1.245.188 1.75.51V6.75A1.75 1.75 0 0016.25 5h-4.836a.25.25 0 01-.177-.073L9.823 3.513A1.75 1.75 0 008.586 3H3.75zM3.75 9A1.75 1.75 0 002 10.75v4.5c0 .966.784 1.75 1.75 1.75h12.5A1.75 1.75 0 0018 15.25v-4.5A1.75 1.75 0 0016.25 9H3.75z" />
+                  </svg>
+                  File browser available — click to open
+                </button>
+              );
+            }
+
             return (
               <CodeBlock
                 code={codeString}
@@ -55,10 +100,33 @@ export function MarkdownContent({
           pre({ children }) {
             return <>{children}</>;
           },
-          // Detect E2B sandbox URLs and render an inline preview iframe
+          // Detect E2B sandbox URLs — store preview URL, user opens via button
           a({ href, children }) {
             if (href && /\be2b[.-]/.test(href)) {
-              return <SandboxPreview url={href} />;
+              const store = useUIStore.getState();
+              if (store.previewUrl !== href) {
+                store.setPreviewUrl(href);
+              }
+              return (
+                <button
+                  onClick={() => {
+                    useUIStore.getState().openDrawerTo("preview");
+                  }}
+                  className="my-2 flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition-colors hover:opacity-80"
+                  style={{
+                    background: "var(--color-bg-sidebar)",
+                    border: "1px solid var(--color-border)",
+                    color: "var(--color-text-secondary)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div
+                    className="h-2 w-2 flex-shrink-0 rounded-full"
+                    style={{ background: "#16A34A" }}
+                  />
+                  Live preview available — click to open
+                </button>
+              );
             }
             return (
               <a href={href} target="_blank" rel="noopener noreferrer">

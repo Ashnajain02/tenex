@@ -24,12 +24,20 @@ export async function buildContextForThread(
   const thread = await prisma.thread.findUnique({
     where: { id: threadId },
     include: {
-      messages: { orderBy: { createdAt: "asc" } },
+      messages: {
+        orderBy: { createdAt: "asc" },
+        select: { id: true, role: true, content: true },
+      },
       mergesAsTarget: {
         include: {
           sourceThread: {
             include: {
-              messages: { orderBy: { createdAt: "asc" } },
+              messages: {
+                orderBy: { createdAt: "asc" },
+                select: { role: true, content: true },
+                // Only load last 8 messages per merged thread to limit context size
+                take: 8,
+              },
             },
           },
         },
@@ -47,6 +55,7 @@ export async function buildContextForThread(
     const parentMessages = await prisma.message.findMany({
       where: { threadId: thread.parentThreadId },
       orderBy: { createdAt: "asc" },
+      select: { id: true, role: true, content: true },
     });
 
     const cutoffIndex = parentMessages.findIndex(

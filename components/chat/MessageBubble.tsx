@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { memo, useRef } from "react";
 import { useTextSelection } from "@/hooks/use-text-selection";
 import { useTextHighlight } from "@/hooks/use-text-highlight";
 import { MarkdownContent } from "./MarkdownContent";
@@ -26,7 +26,7 @@ interface MessageBubbleProps {
   ) => void;
 }
 
-export function MessageBubble({
+export const MessageBubble = memo(function MessageBubble({
   message,
   threadId,
   compact,
@@ -53,7 +53,7 @@ export function MessageBubble({
           alt=""
           width={compact ? 20 : 24}
           height={compact ? 20 : 24}
-          className={cn("flex-shrink-0 mt-1 mr-3", compact ? "h-5 w-5" : "h-6 w-6")}
+          className={cn("flex-shrink-0 mt-1.5 mr-3", compact ? "h-5 w-5" : "h-6 w-6")}
         />
       )}
 
@@ -63,14 +63,15 @@ export function MessageBubble({
           "relative",
           isUser
             ? cn(
-                "rounded-2xl text-white",
-                compact ? "px-3 py-2 text-sm max-w-[85%]" : "px-4 py-3 max-w-[75%]"
+                "rounded-2xl",
+                compact ? "px-3.5 py-2.5 text-sm max-w-[85%]" : "px-5 py-3.5 max-w-[75%]"
               )
             : cn(
-                compact ? "max-w-[95%]" : "max-w-[85%]"
+                "flex-1 min-w-0",
+                compact ? "max-w-[95%]" : ""
               )
         )}
-        style={isUser ? { background: "#2B2B2B" } : undefined}
+        style={isUser ? { background: "var(--color-bg-user-msg)", color: "var(--color-text-primary)", border: "1px solid var(--color-border-subtle)" } : undefined}
       >
         <div ref={contentRef}>
           {isUser ? (
@@ -95,4 +96,4 @@ export function MessageBubble({
       </div>
     </div>
   );
-}
+});

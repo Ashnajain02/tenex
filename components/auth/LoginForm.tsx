@@ -30,14 +30,14 @@ export function LoginForm() {
     if (result?.error) {
       setError("Invalid email or password");
     } else {
-      router.push("/");
+      router.push("/c");
       router.refresh();
     }
   }
 
   return (
-    <div className="rounded-xl p-6 shadow-sm" style={{ background: "#FFFFFF", border: "1px solid var(--color-border)" }}>
-      <h1 className="mb-1 text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>Sign in</h1>
+    <div className="rounded-2xl p-8 shadow-sm" style={{ background: "var(--color-bg-elevated)", border: "1px solid var(--color-border)" }}>
+      <h1 className="mb-1 text-xl font-semibold" style={{ color: "var(--color-text-primary)" }}>Sign in</h1>
       <p className="mb-6 text-sm" style={{ color: "var(--color-text-secondary)" }}>
         Welcome back to Twix
       </p>
@@ -58,7 +58,7 @@ export function LoginForm() {
             name="email"
             type="email"
             required
-            className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2"
+            className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2"
             style={{ border: "1px solid var(--color-border)", focusRingColor: "var(--color-accent)" } as React.CSSProperties}
             placeholder="you@example.com"
           />
@@ -74,7 +74,7 @@ export function LoginForm() {
             type="password"
             required
             minLength={6}
-            className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2"
+            className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2"
             style={{ border: "1px solid var(--color-border)" }}
             placeholder="••••••••"
           />
@@ -83,7 +83,7 @@ export function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 transition-colors"
+          className="w-full rounded-xl px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 transition-colors"
           style={{ background: "var(--color-accent)" }}
           onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-accent-hover)")}
           onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-accent)")}

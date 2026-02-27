@@ -34,7 +34,7 @@ export function CodeExecutionResult({
         <pre
           className="overflow-x-auto rounded-md p-2.5 whitespace-pre-wrap break-words"
           style={{
-            background: "#F5F4F0",
+            background: "var(--color-bg-sidebar)",
             color: "var(--color-text-primary)",
             fontFamily: "var(--font-mono), monospace",
             fontSize: compact ? "0.78em" : "0.85em",

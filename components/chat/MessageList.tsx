@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import Image from "next/image";
 import { MessageBubble } from "./MessageBubble";
 import { MergeIndicator } from "./MergeIndicator";
@@ -45,12 +45,15 @@ export function MessageList({
   const scrollRef = useAutoScroll(messages.length);
 
   // Map afterMessageId → MergeEvent[]
-  const mergeMap = new Map<string, MergeEvent[]>();
-  for (const event of mergeEvents) {
-    const existing = mergeMap.get(event.afterMessageId) || [];
-    existing.push(event);
-    mergeMap.set(event.afterMessageId, existing);
-  }
+  const mergeMap = useMemo(() => {
+    const map = new Map<string, MergeEvent[]>();
+    for (const event of mergeEvents) {
+      const existing = map.get(event.afterMessageId) || [];
+      existing.push(event);
+      map.set(event.afterMessageId, existing);
+    }
+    return map;
+  }, [mergeEvents]);
 
   return (
     <div
@@ -61,16 +64,16 @@ export function MessageList({
       {/* Centered column for main thread */}
       <div className={cn(compact ? "" : "mx-auto w-full max-w-2xl px-4")}>
         {messages.length === 0 && !isStreaming && (
-          <div className="flex flex-col items-center justify-center py-20">
+          <div className="flex flex-col items-center justify-center py-24">
             {!compact && (
               <>
-                <div className="mb-4">
-                  <Image src="/logo.svg" alt="" width={48} height={48} className="h-12 w-12" />
+                <div className="mb-6">
+                  <Image src="/logo.svg" alt="" width={40} height={40} className="h-10 w-10 opacity-60" />
                 </div>
-                <p className="text-base font-medium" style={{ color: "var(--color-text-primary)" }}>
+                <p className="text-lg font-medium" style={{ color: "var(--color-text-primary)" }}>
                   How can I help you today?
                 </p>
-                <p className="mt-1 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+                <p className="mt-2 text-sm" style={{ color: "var(--color-text-muted)" }}>
                   Highlight any response text to open a tangent thread
                 </p>
               </>
@@ -83,38 +86,50 @@ export function MessageList({
           </div>
         )}
 
-        <div className={cn("flex flex-col", compact ? "gap-3" : "gap-6")}>
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className="relative"
-              style={
-                message.id === activeChildMessageId
-                  ? { borderLeft: "3px solid var(--color-accent)", paddingLeft: "8px", marginLeft: "-11px", borderRadius: "2px" }
-                  : undefined
-              }
-            >
-              <MessageBubble
-                message={message}
-                threadId={threadId}
-                compact={compact}
-                conversationId={conversationId}
-                highlightedText={
+        <div className={cn("flex flex-col", compact ? "gap-3" : "gap-5")}>
+          {messages.map((message) => {
+            // Skip empty assistant messages while streaming — show typing dots instead
+            if (
+              isStreaming &&
+              message.role === "assistant" &&
+              !message.content.trim() &&
+              message.id === messages[messages.length - 1]?.id
+            ) {
+              return null;
+            }
+
+            return (
+              <div
+                key={message.id}
+                className="relative"
+                style={
                   message.id === activeChildMessageId
-                    ? activeHighlightedText
+                    ? { borderLeft: "2px solid var(--color-accent)", paddingLeft: "10px", marginLeft: "-12px", borderRadius: "2px" }
                     : undefined
                 }
-                onOpenTangent={onOpenTangent}
-              />
-              {mergeMap.get(message.id)?.map((event) => (
-                <MergeIndicator key={event.id} mergeEvent={event} />
-              ))}
-            </div>
-          ))}
+              >
+                <MessageBubble
+                  message={message}
+                  threadId={threadId}
+                  compact={compact}
+                  conversationId={conversationId}
+                  highlightedText={
+                    message.id === activeChildMessageId
+                      ? activeHighlightedText
+                      : undefined
+                  }
+                  onOpenTangent={onOpenTangent}
+                />
+                {mergeMap.get(message.id)?.map((event) => (
+                  <MergeIndicator key={event.id} mergeEvent={event} />
+                ))}
+              </div>
+            );
+          })}
         </div>
 
-        {/* Typing indicator */}
-        {isStreaming && messages[messages.length - 1]?.role === "user" && (
+        {/* Typing indicator — shows while AI is processing before text appears */}
+        {isStreaming && (!messages[messages.length - 1]?.content.trim() || messages[messages.length - 1]?.role === "user") && (
           <div className={cn("flex items-center", compact ? "mt-3 gap-2" : "mt-6 gap-3")}>
             <Image
               src="/logo.svg"
@@ -123,9 +138,11 @@ export function MessageList({
               height={compact ? 20 : 24}
               className={cn("flex-shrink-0", compact ? "h-5 w-5" : "h-6 w-6")}
             />
-            <span className="text-sm" style={{ color: "var(--color-text-muted, #9B9B9B)" }}>
-              Thinking...
-            </span>
+            <div className="flex items-center gap-1">
+              <span className="typing-dot" style={{ animationDelay: "0ms" }} />
+              <span className="typing-dot" style={{ animationDelay: "150ms" }} />
+              <span className="typing-dot" style={{ animationDelay: "300ms" }} />
+            </div>
           </div>
         )}
       </div>

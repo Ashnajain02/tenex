@@ -25,8 +25,8 @@ if (!globalForE2B.e2bSandboxes) {
 
 const sandboxes = globalForE2B.e2bSandboxes;
 
-const SANDBOX_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour idle (dev environment)
-const CLEANUP_INTERVAL_MS = 2 * 60 * 1000; // sweep every 2 min
+const SANDBOX_TIMEOUT_MS = 5 * 60 * 1000; // 5 min idle
+const CLEANUP_INTERVAL_MS = 60 * 1000; // sweep every 1 min
 
 /**
  * Get or create a sandbox for a conversation.
@@ -156,7 +156,7 @@ export async function closeSandbox(conversationId: string) {
   }
 }
 
-/** Get sandbox info for VS Code connection. */
+/** Get sandbox info (active status, ID). */
 export async function getSandboxInfo(
   conversationId: string
 ): Promise<{ sandboxId: string } | null> {
@@ -183,15 +183,28 @@ export async function runCommand(
       exitCode: result.exitCode,
     };
   } catch (err: unknown) {
-    // If it's a user error (bad cwd, invalid args), don't retry — return it as a failed command
     const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("does not exist") || msg.includes("invalid_argument") || msg.includes("InvalidArgumentError")) {
-      return {
-        stdout: "",
-        stderr: msg,
-        exitCode: 1,
-      };
+    const errName = err instanceof Error ? err.constructor.name : "";
+
+    // CommandExitError = command ran but exited non-zero — this is normal, not a dead sandbox
+    if (errName === "CommandExitError" || msg.includes("exit status")) {
+      // Extract result from the error if available
+      const cmdErr = err as { result?: { stdout: string; stderr: string; exitCode: number } };
+      if (cmdErr.result) {
+        return {
+          stdout: cmdErr.result.stdout || "",
+          stderr: cmdErr.result.stderr || "",
+          exitCode: cmdErr.result.exitCode ?? 1,
+        };
+      }
+      return { stdout: "", stderr: msg, exitCode: 1 };
     }
+
+    // Bad cwd, invalid args — return as failed command, don't retry
+    if (msg.includes("does not exist") || msg.includes("invalid_argument") || msg.includes("InvalidArgumentError") || msg.includes("not_found")) {
+      return { stdout: "", stderr: msg, exitCode: 1 };
+    }
+
     // Otherwise sandbox may have died — retry once with a fresh sandbox
     sandboxes.delete(conversationId);
     const fresh = await getSandbox(conversationId);

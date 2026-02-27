@@ -20,7 +20,7 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
             border: "1px solid var(--color-border)",
             color: "var(--color-text-secondary)",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#E8E4DD")}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-bg-hover)")}
           onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-bg-sidebar)")}
           title="Open sidebar"
         >

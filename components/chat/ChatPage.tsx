@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MainThread } from "./MainThread";
 import { TangentPanel } from "./TangentPanel";
+import { SandboxDrawer } from "./SandboxDrawer";
 import { useTangentStore } from "@/store/tangent-store";
+import { useUIStore } from "@/store/ui-store";
 import { useConversationStore } from "@/store/conversation-store";
 import { reconstructTangentState } from "@/lib/tangent-utils";
 import type { MergeEvent, TangentWindowState } from "@/types";
@@ -31,6 +33,11 @@ export function ChatPage({
   const openTangents = useTangentStore((s) => s.openTangents);
   const activeChildByParent = useTangentStore((s) => s.activeChildByParent);
   const viewParentId = useTangentStore((s) => s.viewParentId);
+  const drawerOpen = useUIStore((s) => s.drawerOpen);
+  const drawerWidth = useUIStore((s) => s.drawerWidth);
+  const setDrawerWidth = useUIStore((s) => s.setDrawerWidth);
+  const fileBrowserPath = useUIStore((s) => s.fileBrowserPath);
+  const previewUrl = useUIStore((s) => s.previewUrl);
   const storeConversationId = useTangentStore((s) => s.conversationId);
   const hydrate = useTangentStore((s) => s.hydrate);
   const openTangentAction = useTangentStore((s) => s.openTangent);
@@ -39,6 +46,14 @@ export function ChatPage({
   const setActiveChild = useTangentStore((s) => s.setActiveChild);
 
   const { addConversation } = useConversationStore();
+
+  // Clear drawer state when switching conversations
+  useEffect(() => {
+    const store = useUIStore.getState();
+    store.setPreviewUrl(null);
+    store.setFileBrowserPath(null);
+    store.setDrawerOpen(false);
+  }, [conversationId]);
 
   // Hydrate tangent store from server data on mount or conversation switch.
   // First hydrate from server-provided props (fast SSR path), then fetch
@@ -263,11 +278,7 @@ export function ChatPage({
   // 2. Then walk DOWN the activeChildByParent chain to show the full depth.
   // This ensures ALL open tangents (not just the visible pair) appear in the
   // breadcrumb and are navigable even after clicking "back".
-  const breadcrumbPath: Array<{
-    id: string;
-    parentId: string | null;
-    label: string;
-  }> = (() => {
+  const breadcrumbPath = useMemo(() => {
     const pathIds: string[] = [];
 
     // Walk up from viewParentId to "main"
@@ -275,16 +286,15 @@ export function ChatPage({
     const upVisited = new Set<string>();
     while (cur !== "main" && !upVisited.has(cur)) {
       upVisited.add(cur);
-      if (!tangentMap.has(cur)) break; // guard against stale viewParentId
+      if (!tangentMap.has(cur)) break;
       pathIds.unshift(cur);
       const node = tangentMap.get(cur);
       cur = node?.parentThreadId ?? "main";
     }
     pathIds.unshift("main");
 
-    // Walk DOWN the activeChildByParent chain from the deepest visible node
-    // This reveals tangents deeper than the current view (e.g. t1a when viewing [main|t1])
-    const lastVisible = pathIds[pathIds.length - 1]; // "main" or the deepest upstream node
+    // Walk DOWN the activeChildByParent chain
+    const lastVisible = pathIds[pathIds.length - 1];
     let deepCur = activeChildByParent[lastVisible];
     const downVisited = new Set<string>(upVisited);
     while (deepCur && tangentMap.has(deepCur) && !downVisited.has(deepCur)) {
@@ -304,7 +314,7 @@ export function ChatPage({
             }"`;
       return { id, parentId, label };
     });
-  })();
+  }, [viewParentId, activeChildByParent, tangentMap]);
 
   const handleBreadcrumbClick = useCallback(
     (item: { id: string; parentId: string | null }) => {
@@ -333,8 +343,8 @@ export function ChatPage({
         <div
           className="flex-shrink-0 flex items-center gap-1 px-4 py-2 overflow-x-auto"
           style={{
-            background: "var(--color-bg-sidebar)",
-            borderBottom: "1px solid var(--color-border)",
+            background: "var(--color-bg-base)",
+            borderBottom: "1px solid var(--color-border-subtle)",
           }}
         >
           {breadcrumbPath.map((item, idx) => (
@@ -363,12 +373,15 @@ export function ChatPage({
                 className="rounded px-1.5 py-0.5 text-xs font-medium transition-colors"
                 style={{
                   color:
-                    idx === breadcrumbPath.length - 1
+                    item.id === viewParentId || (item.id === "main" && viewParentId === "main")
                       ? "var(--color-accent)"
-                      : "var(--color-text-secondary)",
+                      : "var(--color-text-muted)",
+                  fontWeight:
+                    item.id === viewParentId || (item.id === "main" && viewParentId === "main")
+                      ? 600 : 400,
                   background:
-                    idx === breadcrumbPath.length - 1
-                      ? "rgba(249,115,22,0.1)"
+                    item.id === viewParentId || (item.id === "main" && viewParentId === "main")
+                      ? "var(--color-accent-subtle)"
                       : "transparent",
                 }}
               >
@@ -405,44 +418,107 @@ export function ChatPage({
           />
         </div>
 
-        {/* Tangent panels — each mounted once when added to openTangents */}
-        {openTangents.map((tangent) => {
-          const isLeft = tangent.threadId === viewParentId;
-          const isRight = tangent.threadId === rightTangent?.threadId;
-          const isVisible = isLeft || isRight;
+        {/* Tangent panels — only mount the 2 visible panels (left + right) */}
+        {openTangents
+          .filter((tangent) => {
+            const isLeft = tangent.threadId === viewParentId;
+            const isRight = tangent.threadId === rightTangent?.threadId;
+            return isLeft || isRight;
+          })
+          .map((tangent) => {
+            const isLeft = tangent.threadId === viewParentId;
 
-          return (
+            return (
+              <div
+                key={tangent.threadId}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  flexDirection: "column",
+                  height: "100%",
+                  display: "flex",
+                }}
+              >
+                <TangentPanel
+                  tangent={tangent}
+                  conversationId={conversationId}
+                  activeChildMessageId={isLeft ? leftActiveChildMessageId : undefined}
+                  activeHighlightedText={isLeft ? leftActiveChildHighlightedText : undefined}
+                  siblings={!isLeft ? rightSiblings : undefined}
+                  onSelectSibling={
+                    !isLeft
+                      ? (id) => setActiveChild(viewParentId, id)
+                      : undefined
+                  }
+                  refreshTrigger={threadRefreshTriggers[tangent.threadId]}
+                  mergeEvents={threadMergeEvents[tangent.threadId]}
+                  onOpenTangent={handleOpenTangent}
+                  onMerge={handleMerge}
+                  onBranch={handleBranch}
+                  onClose={handleClose}
+                />
+              </div>
+            );
+          })}
+
+        {/* Sandbox drawer (files + preview) with resize handle */}
+        {drawerOpen && (fileBrowserPath || previewUrl) && (
+          <div
+            style={{
+              flex: `0 0 ${drawerWidth}px`,
+              display: "flex",
+              height: "100%",
+              position: "relative",
+            }}
+          >
+            {/* Drag handle */}
             <div
-              key={tangent.threadId}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const startX = e.clientX;
+                const startWidth = drawerWidth;
+                const onMouseMove = (ev: MouseEvent) => {
+                  const delta = startX - ev.clientX;
+                  setDrawerWidth(startWidth + delta);
+                };
+                const onMouseUp = () => {
+                  document.removeEventListener("mousemove", onMouseMove);
+                  document.removeEventListener("mouseup", onMouseUp);
+                  document.body.style.cursor = "";
+                  document.body.style.userSelect = "";
+                };
+                document.addEventListener("mousemove", onMouseMove);
+                document.addEventListener("mouseup", onMouseUp);
+                document.body.style.cursor = "col-resize";
+                document.body.style.userSelect = "none";
+              }}
+              style={{
+                width: 3,
+                cursor: "col-resize",
+                flexShrink: 0,
+                background: "var(--color-border-subtle)",
+                transition: "background 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "var(--color-border)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "var(--color-border-subtle)";
+              }}
+            />
+            <div
               style={{
                 flex: 1,
-                minWidth: 0,
+                display: "flex",
                 flexDirection: "column",
                 height: "100%",
-                display: isVisible ? "flex" : "none",
+                minWidth: 0,
               }}
             >
-              <TangentPanel
-                tangent={tangent}
-                conversationId={conversationId}
-                activeChildMessageId={isLeft ? leftActiveChildMessageId : undefined}
-                activeHighlightedText={isLeft ? leftActiveChildHighlightedText : undefined}
-                siblings={isRight ? rightSiblings : undefined}
-                onSelectSibling={
-                  isRight
-                    ? (id) => setActiveChild(viewParentId, id)
-                    : undefined
-                }
-                refreshTrigger={threadRefreshTriggers[tangent.threadId]}
-                mergeEvents={threadMergeEvents[tangent.threadId]}
-                onOpenTangent={handleOpenTangent}
-                onMerge={handleMerge}
-                onBranch={handleBranch}
-                onClose={handleClose}
-              />
+              <SandboxDrawer conversationId={conversationId} />
             </div>
-          );
-        })}
+          </div>
+        )}
       </div>
     </div>
   );

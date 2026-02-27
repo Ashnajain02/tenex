@@ -32,20 +32,10 @@ export async function POST(
     return new Response("Not found", { status: 404 });
   }
 
-  // Generate a short AI title from the highlighted text (same pattern as auto-title)
-  let title = "Branched conversation";
-  if (sourceThread.highlightedText) {
-    try {
-      const { text: rawTitle } = await generateText({
-        model: chatModel,
-        prompt: `In 4 words or fewer, write a short title for a conversation exploring this topic: "${sourceThread.highlightedText.slice(0, 300)}". Reply with only the title — no quotes, no punctuation at the end.`,
-      });
-      title = rawTitle.trim().replace(/^["']|["']$/g, "").slice(0, 50) || title;
-    } catch {
-      // fall back to a truncated version of the highlighted text
-      title = sourceThread.highlightedText.slice(0, 50);
-    }
-  }
+  // Use highlighted text as immediate title — AI refinement happens async
+  const title = sourceThread.highlightedText
+    ? sourceThread.highlightedText.slice(0, 50)
+    : "Branched conversation";
 
   // Copy only USER and ASSISTANT messages from the tangent (SYSTEM messages
   // in the source thread are context-builder artifacts, not stored messages,
@@ -109,6 +99,24 @@ export async function POST(
 
     return { conversation: newConversation };
   });
+
+  // Fire-and-forget: generate a better AI title and backfill it
+  if (sourceThread.highlightedText) {
+    generateText({
+      model: chatModel,
+      prompt: `In 4 words or fewer, write a short title for a conversation exploring this topic: "${sourceThread.highlightedText.slice(0, 300)}". Reply with only the title — no quotes, no punctuation at the end.`,
+    })
+      .then(({ text: rawTitle }) => {
+        const aiTitle = rawTitle.trim().replace(/^["']|["']$/g, "").slice(0, 50);
+        if (aiTitle) {
+          return prisma.conversation.update({
+            where: { id: result.conversation.id },
+            data: { title: aiTitle },
+          });
+        }
+      })
+      .catch(() => {}); // non-critical
+  }
 
   return NextResponse.json(result, { status: 201 });
 }

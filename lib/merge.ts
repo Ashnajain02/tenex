@@ -9,16 +9,20 @@ import { prisma } from "./prisma";
 export async function generateMergeSummary(
   threadId: string
 ): Promise<string> {
+  // Only load last 10 non-system messages to limit token usage
   const messages = await prisma.message.findMany({
-    where: { threadId },
-    orderBy: { createdAt: "asc" },
+    where: { threadId, role: { not: "SYSTEM" } },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+    select: { role: true, content: true },
   });
 
   if (messages.length === 0) return "Empty tangent thread";
 
+  // Reverse to chronological, truncate long individual messages
   const conversation = messages
-    .filter((m) => m.role !== "SYSTEM")
-    .map((m) => `${m.role}: ${m.content}`)
+    .reverse()
+    .map((m) => `${m.role}: ${m.content.slice(0, 500)}`)
     .join("\n");
 
   const { text } = await generateText({

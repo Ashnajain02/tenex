@@ -91,11 +91,11 @@ export function ConversationSidebar() {
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-3 flex-shrink-0"
-        style={{ borderBottom: "1px solid var(--color-border)" }}
+        style={{ borderBottom: "1px solid var(--color-border-subtle)" }}
       >
         <div className="flex items-center gap-2">
           <Image src="/logo.svg" alt="" width={20} height={20} className="h-5 w-5" />
-          <span className="text-sm font-semibold tracking-tight" style={{ color: "var(--color-text-primary)" }}>
+          <span className="text-[15px] font-semibold tracking-tight" style={{ color: "var(--color-text-primary)" }}>
             twix
           </span>
         </div>
@@ -103,7 +103,7 @@ export function ConversationSidebar() {
           onClick={toggleSidebar}
           className="rounded-md p-1.5 transition-colors"
           style={{ color: "var(--color-text-secondary)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#DDD9D0")}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-bg-hover)")}
           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           title="Close sidebar"
         >
@@ -120,7 +120,7 @@ export function ConversationSidebar() {
           className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
           style={{
             background: "var(--color-accent)",
-            color: "white",
+            color: "var(--color-text-on-accent)",
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-accent-hover)")}
           onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-accent)")}
@@ -135,7 +135,7 @@ export function ConversationSidebar() {
       {/* Conversation list */}
       <div className="flex-1 overflow-y-auto px-2 pb-2">
         {conversations.length === 0 && (
-          <p className="px-3 py-4 text-xs text-center" style={{ color: "var(--color-text-muted, #9B9B9B)" }}>
+          <p className="px-3 py-4 text-xs text-center" style={{ color: "var(--color-text-muted)" }}>
             No conversations yet
           </p>
         )}
@@ -151,11 +151,11 @@ export function ConversationSidebar() {
                 "group relative flex items-center rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors mt-0.5",
               )}
               style={{
-                background: isActive ? "#E2DDD6" : "transparent",
-                color: isActive ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+                background: isActive ? "rgba(217,119,87,0.1)" : "transparent",
+                color: isActive ? "var(--color-accent)" : "var(--color-text-secondary)",
               }}
               onMouseEnter={(e) => {
-                if (!isActive) e.currentTarget.style.background = "#E8E4DD";
+                if (!isActive) e.currentTarget.style.background = "var(--color-bg-hover)";
               }}
               onMouseLeave={(e) => {
                 if (!isActive) e.currentTarget.style.background = "transparent";
@@ -165,7 +165,7 @@ export function ConversationSidebar() {
               <svg
                 className="mr-2 h-3.5 w-3.5 flex-shrink-0"
                 fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                style={{ color: isActive ? "var(--color-accent)" : "var(--color-text-muted, #9B9B9B)" }}
+                style={{ color: isActive ? "var(--color-accent)" : "var(--color-text-muted)" }}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
                   d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -181,7 +181,7 @@ export function ConversationSidebar() {
                   onClick={(e) => e.stopPropagation()}
                   className="flex-1 min-w-0 rounded px-1 py-0 text-sm outline-none"
                   style={{
-                    background: "#FFF8F4",
+                    background: "var(--color-bg-elevated)",
                     border: "1px solid var(--color-accent)",
                     color: "var(--color-text-primary)",
                   }}
@@ -197,9 +197,9 @@ export function ConversationSidebar() {
                   <button
                     onClick={(e) => startRename(e, conv)}
                     className="rounded p-0.5 transition-colors"
-                    style={{ color: "var(--color-text-muted, #9B9B9B)" }}
+                    style={{ color: "var(--color-text-muted)" }}
                     onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-text-primary)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-muted, #9B9B9B)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-muted)")}
                     title="Rename"
                   >
                     <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -211,9 +211,9 @@ export function ConversationSidebar() {
                   <button
                     onClick={(e) => handleDelete(e, conv.id)}
                     className="rounded p-0.5 transition-colors"
-                    style={{ color: "var(--color-text-muted, #9B9B9B)" }}
+                    style={{ color: "var(--color-text-muted)" }}
                     onMouseEnter={(e) => (e.currentTarget.style.color = "#EF4444")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-muted, #9B9B9B)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-muted)")}
                     title="Delete"
                   >
                     <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -235,7 +235,7 @@ export function ConversationSidebar() {
           <div className="flex items-center gap-2">
             {/* Avatar initial */}
             <div
-              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
               style={{ background: "var(--color-accent)" }}
             >
               {(session.user.name ?? session.user.email ?? "?")[0].toUpperCase()}
@@ -253,7 +253,7 @@ export function ConversationSidebar() {
               {session.user.email && (
                 <p
                   className="truncate text-[10px]"
-                  style={{ color: "var(--color-text-muted, #9B9B9B)" }}
+                  style={{ color: "var(--color-text-muted)" }}
                 >
                   {session.user.email}
                 </p>
@@ -261,7 +261,7 @@ export function ConversationSidebar() {
             </div>
             {/* Logout button */}
             <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={() => signOut({ callbackUrl: "/" })}
               className="flex-shrink-0 rounded-md p-1.5 transition-colors"
               style={{ color: "var(--color-text-secondary)" }}
               onMouseEnter={(e) => {

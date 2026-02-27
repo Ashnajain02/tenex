@@ -95,6 +95,8 @@ model Thread {
   mergesAsTarget MergeEvent[]  @relation("MergeTarget")
 
   @@index([conversationId])
+  @@index([parentThreadId])
+  @@index([conversationId, status])
   @@map("threads")
 }
 
@@ -127,6 +129,7 @@ model MergeEvent {
   afterMessage Message @relation("MergeAfterMessage", fields: [afterMessageId], references: [id])
 
   @@index([targetThreadId])
+  @@index([sourceThreadId])
   @@map("merge_events")
 }
 

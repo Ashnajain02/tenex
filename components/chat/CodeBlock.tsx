@@ -104,8 +104,8 @@ export function CodeBlock({
     <div style={{ margin: compact ? "0.5em 0" : "0.75em 0" }}>
       {/* Header bar */}
       <div
-        className="flex items-center justify-between rounded-t-lg px-3 py-1.5"
-        style={{ background: "#2A2926", color: "#A8A29E" }}
+        className="flex items-center justify-between rounded-t-lg px-3 py-2"
+        style={{ background: "var(--color-code-toolbar)", color: "var(--color-code-muted)" }}
       >
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium">{language || "code"}</span>
@@ -122,14 +122,14 @@ export function CodeBlock({
           {isEdited && (
             <button
               onClick={handleReset}
-              className="rounded px-2 py-0.5 text-xs transition-colors hover:text-white"
+              className="rounded-md px-2.5 py-1 text-xs transition-colors hover:text-white"
             >
               Reset
             </button>
           )}
           <button
             onClick={handleCopy}
-            className="rounded px-2 py-0.5 text-xs transition-colors hover:text-white"
+            className="rounded-md px-2.5 py-1 text-xs transition-colors hover:text-white"
           >
             {copied ? "Copied!" : "Copy"}
           </button>
@@ -138,8 +138,8 @@ export function CodeBlock({
             <button
               onClick={handleRun}
               disabled={isRunning}
-              className="rounded px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-50"
-              style={{ background: "#16A34A", color: "white" }}
+              className="rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50"
+              style={{ background: "var(--color-success)", color: "white" }}
             >
               {isRunning ? "Running..." : "Run"}
             </button>

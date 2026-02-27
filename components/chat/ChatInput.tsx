@@ -127,7 +127,7 @@ export function ChatInput({
             className="flex-1 resize-none rounded-lg px-3 py-2 text-sm outline-none"
             style={{
               border: "1px solid var(--color-border)",
-              background: "white",
+              background: "var(--color-bg-elevated)",
               color: "var(--color-text-primary)",
             }}
           />
@@ -191,7 +191,7 @@ export function ChatInput({
               {/* IDE Toolbar */}
               <div
                 className="flex items-center justify-between px-3 py-1.5"
-                style={{ background: "#2A2926", color: "#A8A29E" }}
+                style={{ background: "var(--color-code-toolbar)", color: "var(--color-code-muted)" }}
               >
                 <div className="flex items-center gap-2">
                   <button
@@ -225,7 +225,7 @@ export function ChatInput({
                     onClick={handleRunCode}
                     disabled={isRunning || !input.trim()}
                     className="flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-medium text-white transition-colors disabled:opacity-40"
-                    style={{ background: "#16A34A" }}
+                    style={{ background: "var(--color-success)" }}
                   >
                     {isRunning ? (
                       <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -256,7 +256,7 @@ export function ChatInput({
 
               {/* Execution result inside IDE container */}
               {codeResult && (
-                <div style={{ borderTop: "1px solid #2A2926" }}>
+                <div style={{ borderTop: "1px solid var(--color-code-toolbar)" }}>
                   <CodeExecutionResult result={codeResult} />
                 </div>
               )}
@@ -264,7 +264,7 @@ export function ChatInput({
 
             <p
               className="mt-1.5 text-center text-[11px]"
-              style={{ color: "var(--color-text-muted, #9B9B9B)" }}
+              style={{ color: "var(--color-text-muted)" }}
             >
               Cmd+Enter to run
             </p>
@@ -273,11 +273,10 @@ export function ChatInput({
           /* ── Chat Mode ── */
           <form onSubmit={handleSubmit}>
             <div
-              className="flex items-end gap-3 rounded-2xl px-4 py-3"
+              className="flex items-center gap-3 rounded-2xl px-4 py-3"
               style={{
-                background: "white",
+                background: "var(--color-bg-elevated)",
                 border: "1px solid var(--color-border)",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
               }}
             >
               {/* Code mode toggle */}
@@ -327,7 +326,7 @@ export function ChatInput({
               <button
                 type="submit"
                 disabled={isLoading || !input.trim()}
-                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-all disabled:opacity-40"
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-all disabled:opacity-40"
                 style={{
                   background: "var(--color-accent)",
                   color: "white",
@@ -363,7 +362,7 @@ export function ChatInput({
 
             <p
               className="mt-1.5 text-center text-[11px]"
-              style={{ color: "var(--color-text-muted, #9B9B9B)" }}
+              style={{ color: "var(--color-text-muted)" }}
             >
               Enter to send · Shift+Enter for new line
             </p>

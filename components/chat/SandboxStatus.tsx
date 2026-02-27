@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useUIStore } from "@/store/ui-store";
 
 interface SandboxStatusProps {
   conversationId: string;
@@ -8,7 +9,10 @@ interface SandboxStatusProps {
 
 export function SandboxStatus({ conversationId }: SandboxStatusProps) {
   const [sandboxId, setSandboxId] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+
+  // Read store values only via getState() to avoid subscribing to every change
+  const openDrawerTo = useUIStore((s) => s.openDrawerTo);
+  const setDrawerOpen = useUIStore((s) => s.setDrawerOpen);
 
   const checkSandbox = useCallback(async () => {
     try {
@@ -16,9 +20,21 @@ export function SandboxStatus({ conversationId }: SandboxStatusProps) {
       if (!res.ok) return;
       const data = await res.json();
       if (data.active && data.sandboxId) {
-        setSandboxId(data.sandboxId);
+        setSandboxId((prev) => {
+          if (prev && prev !== data.sandboxId) {
+            const store = useUIStore.getState();
+            if (store.previewUrl) {
+              store.setPreviewUrl(null);
+            }
+          }
+          return data.sandboxId;
+        });
       } else {
         setSandboxId(null);
+        const store = useUIStore.getState();
+        if (store.previewUrl) {
+          store.setPreviewUrl(null);
+        }
       }
     } catch {
       // ignore
@@ -26,18 +42,12 @@ export function SandboxStatus({ conversationId }: SandboxStatusProps) {
   }, [conversationId]);
 
   useEffect(() => {
-    // Initial check — fire-and-forget to avoid sync setState in effect
-    const timeout = setTimeout(checkSandbox, 0);
-    const interval = setInterval(checkSandbox, 15_000);
-    return () => {
-      clearTimeout(timeout);
-      clearInterval(interval);
-    };
+    checkSandbox();
+    const interval = setInterval(checkSandbox, 30_000);
+    return () => clearInterval(interval);
   }, [checkSandbox]);
 
   if (!sandboxId) return null;
-
-  const vsCodeLink = `vscode://bhavaniravi.e2b-sandbox-explorer/connect?sandboxId=${sandboxId}`;
 
   return (
     <div
@@ -50,40 +60,74 @@ export function SandboxStatus({ conversationId }: SandboxStatusProps) {
       <div className="flex items-center gap-2">
         <div
           className="h-2 w-2 rounded-full"
-          style={{ background: "#16A34A" }}
+          style={{ background: "var(--color-success)" }}
         />
         <span style={{ color: "var(--color-text-secondary)" }}>
           Sandbox active
         </span>
       </div>
 
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(sandboxId);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          }}
-          className="rounded px-2 py-0.5 transition-colors hover:opacity-80"
-          style={{
-            color: "var(--color-text-secondary)",
-            border: "1px solid var(--color-border)",
-          }}
-        >
-          {copied ? "Copied!" : "Copy ID"}
-        </button>
-
-        <a
-          href={vsCodeLink}
-          className="flex items-center gap-1 rounded px-2 py-0.5 font-medium text-white transition-colors hover:opacity-90"
-          style={{ background: "#007ACC" }}
-        >
-          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17.583 2.603L12.2 7.575 7.637 4.3 2 6.788v10.424l5.637 2.488 4.563-3.275 5.383 4.972L24 18.203V5.797l-6.417-3.194zM7.637 14.738L4.5 12l3.137-2.738v5.476zm9.946 2.476L12.2 12l5.383-5.214v10.428z" />
-          </svg>
-          Open in VS Code
-        </a>
+      <div className="flex items-center gap-1.5">
+        <SandboxButton
+          type="files"
+          openDrawerTo={openDrawerTo}
+          setDrawerOpen={setDrawerOpen}
+        />
+        <SandboxButton
+          type="preview"
+          openDrawerTo={openDrawerTo}
+          setDrawerOpen={setDrawerOpen}
+        />
       </div>
     </div>
+  );
+}
+
+/** Reads store state on click only — no subscriptions to drawerOpen/drawerTab */
+function SandboxButton({
+  type,
+  openDrawerTo,
+  setDrawerOpen,
+}: {
+  type: "files" | "preview";
+  openDrawerTo: (tab: "files" | "preview") => void;
+  setDrawerOpen: (open: boolean) => void;
+}) {
+  const handleClick = useCallback(() => {
+    const store = useUIStore.getState();
+    const hasContent = type === "files" ? !!store.fileBrowserPath : !!store.previewUrl;
+    if (!hasContent) return;
+
+    if (store.drawerOpen && store.drawerTab === type) {
+      setDrawerOpen(false);
+    } else {
+      openDrawerTo(type);
+    }
+  }, [type, openDrawerTo, setDrawerOpen]);
+
+  // Read availability from store on each render but avoid subscribing to drawerOpen/drawerTab
+  const store = useUIStore.getState();
+  const hasContent = type === "files" ? !!store.fileBrowserPath : !!store.previewUrl;
+
+  if (!hasContent) return null;
+
+  return (
+    <button
+      onClick={handleClick}
+      className="flex items-center gap-1.5 rounded px-2 py-0.5 transition-colors"
+      style={{ color: "var(--color-text-secondary)" }}
+    >
+      {type === "files" ? (
+        <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+        </svg>
+      ) : (
+        <div
+          className="h-2 w-2 rounded-full"
+          style={{ background: "var(--color-success)" }}
+        />
+      )}
+      {type === "files" ? "Files" : "Preview"}
+    </button>
   );
 }

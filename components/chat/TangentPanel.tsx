@@ -46,13 +46,13 @@ export function TangentPanel({
   return (
     <div
       className="flex flex-col h-full"
-      style={{ borderLeft: "3px solid var(--color-accent)" }}
+      style={{ borderLeft: "1px solid var(--color-border)" }}
     >
       {/* Header */}
       <div
         className="flex-shrink-0 px-4 py-3"
         style={{
-          background: "var(--color-bg-sidebar)",
+          background: "var(--color-bg-base)",
           borderBottom: "1px solid var(--color-border)",
         }}
       >
@@ -67,13 +67,13 @@ export function TangentPanel({
                 style={{
                   background:
                     s.threadId === tangent.threadId
-                      ? "var(--color-accent)"
-                      : "var(--color-bg-base)",
+                      ? "var(--color-bg-active)"
+                      : "var(--color-bg-elevated)",
                   color:
                     s.threadId === tangent.threadId
-                      ? "white"
+                      ? "var(--color-text-primary)"
                       : "var(--color-text-secondary)",
-                  border: "1px solid var(--color-border)",
+                  border: `1px solid ${s.threadId === tangent.threadId ? "var(--color-border)" : "var(--color-border-subtle)"}`,
                 }}
                 title={s.highlightedText}
               >
@@ -85,10 +85,10 @@ export function TangentPanel({
         )}
 
         <div className="flex items-start gap-2">
-          {/* Accent dot */}
+          {/* Indicator dot */}
           <div
-            className="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full"
-            style={{ background: "var(--color-accent)" }}
+            className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full"
+            style={{ background: "var(--color-text-muted)" }}
           />
 
           {/* Highlighted text */}
@@ -104,10 +104,14 @@ export function TangentPanel({
             {/* Merge */}
             <button
               onClick={() => onMerge(tangent.threadId)}
-              className="rounded-md px-2 py-1 text-xs font-medium transition-colors"
-              style={{ background: "#16A34A", color: "white" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#15803D")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "#16A34A")}
+              className="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+              style={{
+                background: "transparent",
+                color: "var(--color-success)",
+                border: "1px solid var(--color-success)",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(34, 197, 94, 0.08)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               title="Merge back into parent thread"
             >
               Merge
@@ -116,10 +120,14 @@ export function TangentPanel({
             {/* Branch */}
             <button
               onClick={() => onBranch(tangent.threadId)}
-              className="rounded-md px-2 py-1 text-xs font-medium transition-colors"
-              style={{ background: "#2563EB", color: "white" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#1D4ED8")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "#2563EB")}
+              className="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+              style={{
+                background: "transparent",
+                color: "var(--color-info)",
+                border: "1px solid var(--color-info)",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(59, 130, 246, 0.08)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               title="Branch into its own conversation"
             >
               Branch
@@ -129,14 +137,14 @@ export function TangentPanel({
             <button
               onClick={() => onClose(tangent.threadId)}
               className="rounded-md p-1 transition-colors"
-              style={{ color: "var(--color-text-secondary)" }}
+              style={{ color: "var(--color-text-muted)" }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#FEE2E2";
-                e.currentTarget.style.color = "#EF4444";
+                e.currentTarget.style.background = "rgba(239, 68, 68, 0.06)";
+                e.currentTarget.style.color = "var(--color-error)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "var(--color-text-secondary)";
+                e.currentTarget.style.color = "var(--color-text-muted)";
               }}
               title="Close"
             >

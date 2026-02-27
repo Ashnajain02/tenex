@@ -15,21 +15,20 @@ export function MergeIndicator({ mergeEvent }: { mergeEvent: MergeEvent }) {
           onClick={() => setShowHistory(true)}
           className="flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-all"
           style={{
-            background: "#FFF3EE",
-            border: "1px solid #F5C4AE",
-            color: "var(--color-accent)",
+            background: "var(--color-bg-base)",
+            border: "1px solid var(--color-border)",
+            color: "var(--color-text-secondary)",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#FFE9DE";
-            e.currentTarget.style.borderColor = "var(--color-accent)";
+            e.currentTarget.style.background = "var(--color-bg-hover)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "#FFF3EE";
-            e.currentTarget.style.borderColor = "#F5C4AE";
+            e.currentTarget.style.background = "var(--color-bg-base)";
           }}
         >
           {/* Merge icon */}
-          <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            style={{ color: "var(--color-text-muted)" }}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
           </svg>
@@ -42,7 +41,7 @@ export function MergeIndicator({ mergeEvent }: { mergeEvent: MergeEvent }) {
             )}
           </span>
           {/* Arrow */}
-          <svg className="h-3 w-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-3 w-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>

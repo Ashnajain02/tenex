@@ -42,7 +42,7 @@ function Logo({ variant = "dark" }: { variant?: "dark" | "white" }) {
       />
       <span
         className="text-xl font-semibold tracking-tight"
-        style={{ color: variant === "white" ? "#FFFFFF" : "#1A1A1A" }}
+        style={{ color: variant === "white" ? "#FFFFFF" : "var(--color-text-primary)" }}
       >
         twix
       </span>
@@ -65,9 +65,9 @@ function Nav({ isLoggedIn }: { isLoggedIn: boolean }) {
     <nav
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
       style={{
-        background: scrolled ? "rgba(255,252,248,0.92)" : "transparent",
+        background: scrolled ? "rgba(250,250,248,0.92)" : "transparent",
         backdropFilter: scrolled ? "blur(16px)" : "none",
-        borderBottom: scrolled ? "1px solid rgba(221,217,208,0.6)" : "1px solid transparent",
+        borderBottom: scrolled ? "1px solid var(--color-border)" : "1px solid transparent",
       }}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
@@ -104,7 +104,7 @@ function Nav({ isLoggedIn }: { isLoggedIn: boolean }) {
         {/* Mobile hamburger */}
         <button
           className="flex h-9 w-9 items-center justify-center rounded-lg md:hidden"
-          style={{ color: "#1A1A1A" }}
+          style={{ color: "var(--color-text-primary)" }}
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Menu"
         >
@@ -125,7 +125,7 @@ function Nav({ isLoggedIn }: { isLoggedIn: boolean }) {
         <div
           className="border-t px-6 pb-6 pt-4 md:hidden"
           style={{
-            background: "rgba(255,252,248,0.98)",
+            background: "rgba(250,250,248,0.98)",
             borderColor: "var(--color-border)",
           }}
         >
@@ -159,23 +159,23 @@ function Hero({ isLoggedIn }: { isLoggedIn: boolean }) {
         <div className="mx-auto max-w-3xl text-center">
           {/* Badge */}
           <div className="mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium landing-badge">
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#D97757" }} />
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-accent)" }} />
             AI-powered workspace
           </div>
 
           <h1
             className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl"
-            style={{ color: "#1A1A1A" }}
+            style={{ color: "var(--color-text-primary)" }}
           >
             Think deeper.{" "}
-            <span style={{ color: "#D97757" }}>Build faster.</span>
+            <span style={{ color: "var(--color-accent)" }}>Build faster.</span>
             <br />
             Branch freely.
           </h1>
 
           <p
             className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed md:text-xl"
-            style={{ color: "#6B6B6B" }}
+            style={{ color: "var(--color-text-secondary)" }}
           >
             The AI workspace where conversations branch like your thoughts. Explore
             any tangent without losing context, write and run code in a live cloud
@@ -221,15 +221,15 @@ function Hero({ isLoggedIn }: { isLoggedIn: boolean }) {
 /* ─── Hero mockup (CSS-only app preview) ────────────────────────── */
 function HeroMockup() {
   return (
-    <div className="overflow-hidden rounded-xl border shadow-2xl" style={{ background: "#FAF9F5", borderColor: "#DDD9D0" }}>
+    <div className="overflow-hidden rounded-xl border shadow-2xl" style={{ background: "var(--color-bg-base)", borderColor: "var(--color-border)" }}>
       {/* Title bar */}
-      <div className="flex items-center gap-2 border-b px-4 py-3" style={{ background: "#F0EDE8", borderColor: "#DDD9D0" }}>
+      <div className="flex items-center gap-2 border-b px-4 py-3" style={{ background: "var(--color-bg-sidebar)", borderColor: "var(--color-border)" }}>
         <div className="flex gap-1.5">
-          <div className="h-3 w-3 rounded-full" style={{ background: "#E8E4DD" }} />
-          <div className="h-3 w-3 rounded-full" style={{ background: "#E8E4DD" }} />
-          <div className="h-3 w-3 rounded-full" style={{ background: "#E8E4DD" }} />
+          <div className="h-3 w-3 rounded-full" style={{ background: "var(--color-bg-active)" }} />
+          <div className="h-3 w-3 rounded-full" style={{ background: "var(--color-bg-active)" }} />
+          <div className="h-3 w-3 rounded-full" style={{ background: "var(--color-bg-active)" }} />
         </div>
-        <div className="flex-1 text-center text-xs font-medium" style={{ color: "#6B6B6B" }}>
+        <div className="flex-1 text-center text-xs font-medium" style={{ color: "var(--color-text-secondary)" }}>
           twix
         </div>
       </div>
@@ -237,8 +237,14 @@ function HeroMockup() {
       {/* App content */}
       <div className="flex" style={{ height: 360 }}>
         {/* Sidebar */}
-        <div className="hidden w-52 shrink-0 border-r p-3 sm:block" style={{ background: "#F0EDE8", borderColor: "#DDD9D0" }}>
-          <div className="mb-3 rounded-lg px-3 py-2 text-xs font-medium" style={{ background: "#D97757", color: "#FFF" }}>
+        <div className="hidden w-52 shrink-0 border-r p-3 sm:block" style={{ background: "var(--color-bg-sidebar)", borderColor: "var(--color-border)" }}>
+          <div
+            className="mb-3 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium"
+            style={{ background: "transparent", color: "var(--color-text-primary)", border: "1px solid var(--color-border)" }}
+          >
+            <svg className="h-3 w-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
             New conversation
           </div>
           {["Understanding React hooks", "Python data pipeline", "API design patterns"].map((t, i) => (
@@ -246,8 +252,9 @@ function HeroMockup() {
               key={i}
               className="rounded-lg px-3 py-2 text-xs mb-1"
               style={{
-                background: i === 0 ? "rgba(217,119,87,0.1)" : "transparent",
-                color: i === 0 ? "#D97757" : "#6B6B6B",
+                background: i === 0 ? "var(--color-bg-active)" : "transparent",
+                color: i === 0 ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+                fontWeight: i === 0 ? 500 : 400,
               }}
             >
               {t}
@@ -260,39 +267,40 @@ function HeroMockup() {
           <div className="flex-1 overflow-hidden p-4 space-y-4">
             {/* User message */}
             <div className="flex justify-end">
-              <div className="max-w-xs rounded-2xl rounded-br-md px-4 py-2.5 text-sm" style={{ background: "#D97757", color: "#FFF" }}>
+              <div className="max-w-xs rounded-2xl px-5 py-3.5 text-sm" style={{ background: "var(--color-bg-user-msg)", color: "var(--color-text-primary)" }}>
                 Explain how React hooks work and show me an example
               </div>
             </div>
             {/* Assistant message */}
-            <div className="flex justify-start">
-              <div className="max-w-sm rounded-2xl rounded-bl-md px-4 py-2.5 text-sm" style={{ background: "#F0EDE8", color: "#1A1A1A" }}>
+            <div className="flex items-start justify-start gap-2.5">
+              <Image src="/logo.svg" alt="" width={20} height={20} className="h-5 w-5 mt-1 flex-shrink-0 opacity-70" />
+              <div className="max-w-sm text-sm" style={{ color: "var(--color-text-primary)" }}>
                 <p className="font-medium mb-1.5">React Hooks</p>
-                <p className="text-xs leading-relaxed" style={{ color: "#6B6B6B" }}>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
                   Hooks let you use state and lifecycle features in function components.
-                  The most common are <code className="rounded px-1 py-0.5 text-[10px]" style={{ background: "#E8E4DD" }}>useState</code> and <code className="rounded px-1 py-0.5 text-[10px]" style={{ background: "#E8E4DD" }}>useEffect</code>...
+                  The most common are <code className="rounded px-1 py-0.5 text-[10px]" style={{ background: "var(--color-bg-hover)" }}>useState</code> and <code className="rounded px-1 py-0.5 text-[10px]" style={{ background: "var(--color-bg-hover)" }}>useEffect</code>...
                 </p>
               </div>
             </div>
             {/* Branching indicator */}
             <div className="flex items-center gap-2 pl-2">
-              <div className="h-px flex-1" style={{ background: "#DDD9D0" }} />
-              <span className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-medium" style={{ background: "rgba(217,119,87,0.1)", color: "#D97757" }}>
+              <div className="h-px flex-1" style={{ background: "var(--color-border)" }} />
+              <span className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-medium" style={{ background: "var(--color-bg-hover)", color: "var(--color-text-secondary)" }}>
                 <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
                 Tangent: useEffect deep dive
               </span>
-              <div className="h-px flex-1" style={{ background: "#DDD9D0" }} />
+              <div className="h-px flex-1" style={{ background: "var(--color-border)" }} />
             </div>
           </div>
 
           {/* Input */}
-          <div className="border-t p-3" style={{ borderColor: "#DDD9D0" }}>
-            <div className="flex items-center gap-2 rounded-xl border px-4 py-2.5" style={{ borderColor: "#DDD9D0", background: "#FDFCFA" }}>
-              <span className="flex-1 text-xs" style={{ color: "#BDBAB0" }}>Ask anything...</span>
-              <div className="h-6 w-6 rounded-lg flex items-center justify-center" style={{ background: "#D97757" }}>
-                <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="border-t p-3" style={{ borderColor: "var(--color-border)" }}>
+            <div className="flex items-center gap-2 rounded-2xl border px-4 py-2.5" style={{ borderColor: "var(--color-border)", background: "var(--color-bg-elevated)" }}>
+              <span className="flex-1 text-xs" style={{ color: "var(--color-text-muted)" }}>Message Twix...</span>
+              <div className="h-7 w-7 rounded-lg flex items-center justify-center" style={{ background: "var(--color-accent)" }}>
+                <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
               </div>
@@ -300,18 +308,20 @@ function HeroMockup() {
           </div>
         </div>
 
-        {/* Tangent panel */}
-        <div className="hidden w-56 shrink-0 border-l lg:block" style={{ borderColor: "#DDD9D0", background: "#FDFCFA" }}>
-          <div className="border-b p-3 text-xs font-medium" style={{ borderColor: "#DDD9D0", color: "#D97757" }}>
+        {/* Tangent panel — matches actual TangentPanel with subtle 1px left border */}
+        <div className="hidden w-56 shrink-0 border-l lg:block" style={{ borderColor: "var(--color-border)", background: "var(--color-bg-base)" }}>
+          <div className="flex items-center gap-2 border-b p-3 text-xs font-medium" style={{ borderColor: "var(--color-border-subtle)", color: "var(--color-text-primary)" }}>
+            <div className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-text-muted)" }} />
             useEffect deep dive
           </div>
-          <div className="p-3 space-y-2">
-            <div className="rounded-lg px-3 py-2 text-[11px]" style={{ background: "#F0EDE8", color: "#1A1A1A" }}>
-              <p style={{ color: "#6B6B6B" }} className="leading-relaxed">
+          <div className="p-3 space-y-2.5">
+            <div className="flex items-start gap-2">
+              <Image src="/logo.svg" alt="" width={16} height={16} className="h-4 w-4 mt-0.5 flex-shrink-0 opacity-60" />
+              <p className="text-[11px] leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
                 The useEffect hook runs side effects after render. Think of it as componentDidMount + componentDidUpdate combined...
               </p>
             </div>
-            <div className="rounded-lg px-3 py-2 text-[10px] font-mono" style={{ background: "#1E1D1A", color: "#E8E5DC" }}>
+            <div className="rounded-lg px-3 py-2 text-[10px] font-mono" style={{ background: "var(--color-code-bg)", color: "var(--color-code-text)" }}>
               {`useEffect(() => {`}<br />
               {`  fetchData();`}<br />
               {`}, [deps]);`}
@@ -364,16 +374,16 @@ function Features() {
     <section id="features" ref={ref} className="landing-fade-in py-24 md:py-32">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest" style={{ color: "#D97757" }}>
+          <p className="text-sm font-semibold uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>
             Features
           </p>
           <h2
             className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl"
-            style={{ color: "#1A1A1A" }}
+            style={{ color: "var(--color-text-primary)" }}
           >
             Everything you need to think and build
           </h2>
-          <p className="mt-4 text-lg leading-relaxed" style={{ color: "#6B6B6B" }}>
+          <p className="mt-4 text-lg leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
             A unified workspace that combines the best of AI chat, code execution, and research — without the tab switching.
           </p>
         </div>
@@ -384,10 +394,10 @@ function Features() {
               <div className="landing-feature-icon">
                 {f.icon}
               </div>
-              <h3 className="mt-5 text-lg font-semibold" style={{ color: "#1A1A1A" }}>
+              <h3 className="mt-5 text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>
                 {f.title}
               </h3>
-              <p className="mt-2.5 text-sm leading-relaxed" style={{ color: "#6B6B6B" }}>
+              <p className="mt-2.5 text-sm leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
                 {f.description}
               </p>
             </div>
@@ -405,21 +415,21 @@ function FeatureShowcase() {
   const ref3 = useFadeIn<HTMLDivElement>();
 
   return (
-    <section className="py-24 md:py-32" style={{ background: "#FDFCFA" }}>
+    <section className="py-24 md:py-32" style={{ background: "var(--color-bg-elevated)" }}>
       <div className="mx-auto max-w-6xl px-6 space-y-24 md:space-y-32">
         {/* Row 1: Branching */}
         <div ref={ref1} className="landing-fade-in grid items-center gap-12 md:grid-cols-2">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-widest" style={{ color: "#D97757" }}>
+            <p className="text-sm font-semibold uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>
               Branching
             </p>
-            <h3 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "#1A1A1A" }}>
+            <h3 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--color-text-primary)" }}>
               Follow every thread of thought
             </h3>
-            <p className="mt-4 leading-relaxed" style={{ color: "#6B6B6B" }}>
+            <p className="mt-4 leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
               Select any text in a conversation to open a tangent — a focused side thread that inherits full context from the parent. Explore rabbit holes, compare approaches, or dive into details without cluttering the main conversation.
             </p>
-            <p className="mt-3 leading-relaxed" style={{ color: "#6B6B6B" }}>
+            <p className="mt-3 leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
               When you&apos;re done, merge your findings back with an AI-generated summary. Branch as deep as you need — tangents can spawn their own tangents.
             </p>
           </div>
@@ -434,17 +444,17 @@ function FeatureShowcase() {
             <ShowcaseCode />
           </div>
           <div className="order-1 md:order-2">
-            <p className="text-sm font-semibold uppercase tracking-widest" style={{ color: "#D97757" }}>
+            <p className="text-sm font-semibold uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>
               Development
             </p>
-            <h3 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "#1A1A1A" }}>
+            <h3 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--color-text-primary)" }}>
               A real dev environment, not a toy
             </h3>
-            <p className="mt-4 leading-relaxed" style={{ color: "#6B6B6B" }}>
+            <p className="mt-4 leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
               Every conversation gets a cloud Linux sandbox. Clone repositories, install dependencies, edit files, and run tests — all through natural language or the built-in code editor.
             </p>
-            <p className="mt-3 leading-relaxed" style={{ color: "#6B6B6B" }}>
-              Edit the AI&apos;s code directly in the browser with full syntax highlighting. Run it, iterate on it, and connect via VS Code to inspect changes on your terms.
+            <p className="mt-3 leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
+              Edit the AI&apos;s code directly in the browser with full syntax highlighting. Browse files in the interactive explorer, preview your app live, and iterate — all without leaving the chat.
             </p>
           </div>
         </div>
@@ -452,16 +462,16 @@ function FeatureShowcase() {
         {/* Row 3: Web search */}
         <div ref={ref3} className="landing-fade-in grid items-center gap-12 md:grid-cols-2">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-widest" style={{ color: "#D97757" }}>
+            <p className="text-sm font-semibold uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>
               Intelligence
             </p>
-            <h3 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "#1A1A1A" }}>
+            <h3 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--color-text-primary)" }}>
               Always current, always cited
             </h3>
-            <p className="mt-4 leading-relaxed" style={{ color: "#6B6B6B" }}>
+            <p className="mt-4 leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
               Twix automatically searches the web when your question involves current events, recent data, or anything beyond the model&apos;s training cutoff. No manual toggling — it just knows when to search.
             </p>
-            <p className="mt-3 leading-relaxed" style={{ color: "#6B6B6B" }}>
+            <p className="mt-3 leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
               Every claim is cited inline with clickable source links. You always know where the information came from and can verify it yourself.
             </p>
           </div>
@@ -477,53 +487,53 @@ function FeatureShowcase() {
 /* ─── Showcase visuals ──────────────────────────────────────────── */
 function ShowcaseBranching() {
   return (
-    <div className="rounded-xl border p-6" style={{ background: "#FAF9F5", borderColor: "#DDD9D0" }}>
+    <div className="rounded-xl border p-6" style={{ background: "var(--color-bg-base)", borderColor: "var(--color-border)" }}>
       <div className="space-y-3">
         <div className="flex items-start gap-3">
-          <div className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: "#D97757" }} />
+          <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--color-text-muted)" }} />
           <div className="flex-1">
-            <div className="text-xs font-medium" style={{ color: "#1A1A1A" }}>Main thread</div>
-            <div className="mt-1 h-2 rounded-full" style={{ background: "#E8E4DD", width: "85%" }} />
-            <div className="mt-1 h-2 rounded-full" style={{ background: "#E8E4DD", width: "60%" }} />
+            <div className="text-xs font-medium" style={{ color: "var(--color-text-primary)" }}>Main thread</div>
+            <div className="mt-1.5 h-2 rounded-full" style={{ background: "var(--color-bg-active)", width: "85%" }} />
+            <div className="mt-1 h-2 rounded-full" style={{ background: "var(--color-bg-active)", width: "60%" }} />
           </div>
         </div>
 
-        <div className="ml-6 border-l-2 pl-5 py-2" style={{ borderColor: "#D97757" }}>
+        <div className="ml-6 border-l pl-5 py-2" style={{ borderColor: "var(--color-border)" }}>
           <div className="flex items-start gap-3">
-            <div className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: "#E5956F" }} />
+            <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--color-text-muted)" }} />
             <div className="flex-1">
-              <div className="text-xs font-medium" style={{ color: "#D97757" }}>Tangent: performance optimization</div>
-              <div className="mt-1 h-2 rounded-full" style={{ background: "rgba(217,119,87,0.15)", width: "75%" }} />
-              <div className="mt-1 h-2 rounded-full" style={{ background: "rgba(217,119,87,0.15)", width: "50%" }} />
+              <div className="text-xs font-medium" style={{ color: "var(--color-text-primary)" }}>Tangent: performance optimization</div>
+              <div className="mt-1.5 h-2 rounded-full" style={{ background: "var(--color-bg-hover)", width: "75%" }} />
+              <div className="mt-1 h-2 rounded-full" style={{ background: "var(--color-bg-hover)", width: "50%" }} />
             </div>
           </div>
 
-          <div className="ml-6 mt-3 border-l-2 pl-5 py-2" style={{ borderColor: "#E5956F" }}>
+          <div className="ml-6 mt-3 border-l pl-5 py-2" style={{ borderColor: "var(--color-border)" }}>
             <div className="flex items-start gap-3">
-              <div className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: "#F4B89A" }} />
+              <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--color-text-muted)" }} />
               <div className="flex-1">
-                <div className="text-xs font-medium" style={{ color: "#C8663F" }}>Sub-tangent: caching strategy</div>
-                <div className="mt-1 h-2 rounded-full" style={{ background: "rgba(217,119,87,0.1)", width: "65%" }} />
+                <div className="text-xs font-medium" style={{ color: "var(--color-text-primary)" }}>Sub-tangent: caching strategy</div>
+                <div className="mt-1.5 h-2 rounded-full" style={{ background: "var(--color-bg-hover)", width: "65%" }} />
               </div>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2 pt-1">
-          <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium" style={{ background: "rgba(22,163,74,0.1)", color: "#16A34A" }}>
+          <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.08)", color: "var(--color-success)" }}>
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
             Merged back
           </div>
-          <div className="h-px flex-1" style={{ background: "#DDD9D0" }} />
+          <div className="h-px flex-1" style={{ background: "var(--color-border)" }} />
         </div>
 
         <div className="flex items-start gap-3">
-          <div className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: "#D97757" }} />
+          <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--color-text-muted)" }} />
           <div className="flex-1">
-            <div className="text-xs font-medium" style={{ color: "#1A1A1A" }}>Main thread continues...</div>
-            <div className="mt-1 h-2 rounded-full" style={{ background: "#E8E4DD", width: "70%" }} />
+            <div className="text-xs font-medium" style={{ color: "var(--color-text-primary)" }}>Main thread continues...</div>
+            <div className="mt-1.5 h-2 rounded-full" style={{ background: "var(--color-bg-active)", width: "70%" }} />
           </div>
         </div>
       </div>
@@ -534,24 +544,24 @@ function ShowcaseBranching() {
 function ShowcaseCode() {
   return (
     <div className="landing-showcase-visual">
-      <div className="overflow-hidden rounded-xl border" style={{ borderColor: "#333", background: "#1E1D1A" }}>
+      <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--color-code-toolbar)", background: "var(--color-code-bg)" }}>
         {/* Editor toolbar */}
-        <div className="flex items-center justify-between border-b px-4 py-2" style={{ borderColor: "#333", background: "#2A2926" }}>
+        <div className="flex items-center justify-between border-b px-4 py-2" style={{ borderColor: "var(--color-code-toolbar)", background: "var(--color-code-toolbar)" }}>
           <div className="flex items-center gap-2">
-            <span className="rounded px-2 py-0.5 text-[10px] font-medium" style={{ background: "rgba(217,119,87,0.2)", color: "#D97757" }}>
+            <span className="rounded-md px-2.5 py-1 text-[10px] font-medium" style={{ background: "var(--color-accent-subtle)", color: "var(--color-accent)" }}>
               Python
             </span>
-            <span className="text-[10px]" style={{ color: "#6B6B6B" }}>server.py</span>
+            <span className="text-[10px]" style={{ color: "var(--color-code-muted)" }}>server.py</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="rounded px-2 py-0.5 text-[10px]" style={{ background: "rgba(22,163,74,0.15)", color: "#4ADE80" }}>
+            <span className="rounded-md px-2.5 py-1 text-[10px]" style={{ background: "rgba(34,197,94,0.12)", color: "#4ADE80" }}>
               Run
             </span>
           </div>
         </div>
 
         {/* Code content */}
-        <div className="p-4 font-mono text-xs leading-relaxed" style={{ color: "#E8E5DC" }}>
+        <div className="p-4 font-mono text-xs leading-relaxed" style={{ color: "var(--color-code-text)" }}>
           <div><span style={{ color: "#C586C0" }}>from</span> flask <span style={{ color: "#C586C0" }}>import</span> Flask</div>
           <div className="mt-1"><span style={{ color: "#C586C0" }}>from</span> flask_cors <span style={{ color: "#C586C0" }}>import</span> CORS</div>
           <div className="mt-3">app = Flask(<span style={{ color: "#CE9178" }}>__name__</span>)</div>
@@ -562,11 +572,11 @@ function ShowcaseCode() {
         </div>
 
         {/* Terminal output */}
-        <div className="border-t px-4 py-3" style={{ borderColor: "#333", background: "#171614" }}>
+        <div className="border-t px-4 py-3" style={{ borderColor: "var(--color-code-toolbar)", background: "#1C1B18" }}>
           <div className="text-[10px] font-mono" style={{ color: "#4ADE80" }}>
             $ python server.py
           </div>
-          <div className="mt-1 text-[10px] font-mono" style={{ color: "#6B6B6B" }}>
+          <div className="mt-1 text-[10px] font-mono" style={{ color: "var(--color-code-muted)" }}>
             * Running on http://127.0.0.1:5000
           </div>
         </div>
@@ -577,18 +587,18 @@ function ShowcaseCode() {
 
 function ShowcaseSearch() {
   return (
-    <div className="rounded-xl border p-5" style={{ background: "#FAF9F5", borderColor: "#DDD9D0" }}>
+    <div className="rounded-xl border p-5" style={{ background: "var(--color-bg-base)", borderColor: "var(--color-border)" }}>
       <div className="space-y-3">
         {/* User question */}
         <div className="flex justify-end">
-          <div className="rounded-2xl rounded-br-md px-3.5 py-2 text-xs" style={{ background: "#D97757", color: "#FFF" }}>
+          <div className="rounded-2xl px-4 py-2.5 text-xs" style={{ background: "var(--color-bg-user-msg)", color: "var(--color-text-primary)" }}>
             What&apos;s the latest on React 19?
           </div>
         </div>
 
         {/* Search indicator */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium" style={{ background: "rgba(217,119,87,0.1)", color: "#D97757" }}>
+          <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium" style={{ background: "var(--color-bg-hover)", color: "var(--color-text-secondary)" }}>
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -597,13 +607,16 @@ function ShowcaseSearch() {
         </div>
 
         {/* AI response with citations */}
-        <div className="rounded-2xl rounded-bl-md px-3.5 py-2.5 text-xs leading-relaxed" style={{ background: "#F0EDE8", color: "#1A1A1A" }}>
-          <p>
-            <span className="font-medium">React 19</span> is now stable with several major features including the new compiler...
-          </p>
-          <p className="mt-1.5" style={{ color: "#6B6B6B" }}>
-            Source: <span className="underline" style={{ color: "#D97757" }}>react.dev/blog</span>
-          </p>
+        <div className="flex items-start gap-2">
+          <Image src="/logo.svg" alt="" width={16} height={16} className="h-4 w-4 mt-0.5 flex-shrink-0 opacity-60" />
+          <div className="text-xs leading-relaxed" style={{ color: "var(--color-text-primary)" }}>
+            <p>
+              <span className="font-medium">React 19</span> is now stable with several major features including the new compiler...
+            </p>
+            <p className="mt-1.5" style={{ color: "var(--color-text-secondary)" }}>
+              Source: <span className="underline" style={{ color: "var(--color-accent)" }}>react.dev/blog</span>
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -644,7 +657,7 @@ function HowItWorks() {
     >
       <div className="mx-auto max-w-6xl px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest" style={{ color: "#D97757" }}>
+          <p className="text-sm font-semibold uppercase tracking-widest" style={{ color: "var(--color-accent)" }}>
             How it works
           </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
@@ -658,7 +671,7 @@ function HowItWorks() {
         <div className="mt-16 grid gap-8 md:grid-cols-3">
           {steps.map((s, i) => (
             <div key={i} className="landing-step-card">
-              <div className="text-3xl font-bold" style={{ color: "#D97757" }}>
+              <div className="text-3xl font-bold" style={{ color: "var(--color-accent)" }}>
                 {s.step}
               </div>
               <h3 className="mt-4 text-lg font-semibold text-white">
@@ -686,10 +699,10 @@ function CTA({ isLoggedIn }: { isLoggedIn: boolean }) {
     <section ref={ref} className="landing-fade-in py-24 md:py-32">
       <div className="mx-auto max-w-6xl px-6">
         <div className="landing-cta-card">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: "#1A1A1A" }}>
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: "var(--color-text-primary)" }}>
             Ready to think differently?
           </h2>
-          <p className="mx-auto mt-4 max-w-lg text-lg leading-relaxed" style={{ color: "#6B6B6B" }}>
+          <p className="mx-auto mt-4 max-w-lg text-lg leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
             Join Twix and experience conversations that branch, code that runs, and answers that stay current.
           </p>
           <div className="mt-8">

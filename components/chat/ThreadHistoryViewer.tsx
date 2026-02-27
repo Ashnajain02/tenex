@@ -61,7 +61,7 @@ export function ThreadHistoryViewer({
         ) : messages.length === 0 ? (
           <p
             className="py-4 text-center text-sm"
-            style={{ color: "var(--color-text-muted, #9B9B9B)" }}
+            style={{ color: "var(--color-text-muted)" }}
           >
             No messages in this tangent.
           </p>
@@ -79,7 +79,7 @@ export function ThreadHistoryViewer({
                     {!isUser && (
                       <div
                         className="h-5 w-5 flex-shrink-0 rounded-full mt-1 mr-2"
-                        style={{ background: "var(--color-accent)", opacity: 0.85 }}
+                        style={{ background: "var(--color-text-muted)", opacity: 0.6 }}
                       />
                     )}
                     <div
@@ -87,7 +87,7 @@ export function ThreadHistoryViewer({
                         "rounded-2xl text-sm",
                         isUser ? "px-3 py-2 max-w-[85%]" : "max-w-[90%]"
                       )}
-                      style={isUser ? { background: "#2B2B2B", color: "white" } : undefined}
+                      style={isUser ? { background: "var(--color-bg-user-msg)", color: "var(--color-text-primary)" } : undefined}
                     >
                       {isUser ? (
                         <p className="whitespace-pre-wrap break-words leading-relaxed">

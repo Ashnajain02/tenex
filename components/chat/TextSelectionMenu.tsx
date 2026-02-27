@@ -49,18 +49,22 @@ export function TextSelectionMenu({
   return (
     <div
       ref={refs.setFloating} // eslint-disable-line react-hooks/refs -- callback ref from floating-ui, not a .current access
-      style={floatingStyles}
-      className="z-50 rounded-lg border bg-white p-1 shadow-lg"
+      style={{ ...floatingStyles, background: "var(--color-bg-elevated)", border: "1px solid var(--color-border)" }}
+      className="z-50 rounded-xl p-1.5 shadow-lg"
     >
       <button
-        className="flex items-center gap-2 rounded px-3 py-1.5 text-sm hover:bg-gray-100"
+        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
+        style={{ color: "var(--color-text-primary)" }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-bg-hover)")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
         onClick={() => {
           onOpenTangent(threadId, messageId, selectedText, rect);
           onClose();
         }}
       >
         <svg
-          className="h-4 w-4 text-gray-600"
+          className="h-4 w-4"
+          style={{ color: "var(--color-text-secondary)" }}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
