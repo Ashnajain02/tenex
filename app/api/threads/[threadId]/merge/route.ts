@@ -81,6 +81,31 @@ export async function POST(
       },
     });
 
+    // Cascade-archive all ACTIVE descendants of the merged thread
+    const toArchive: string[] = [];
+    const queue: string[] = [threadId];
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      const children = await tx.thread.findMany({
+        where: {
+          parentThreadId: currentId,
+          status: "ACTIVE",
+          conversationId: thread.conversationId,
+        },
+        select: { id: true },
+      });
+      for (const child of children) {
+        toArchive.push(child.id);
+        queue.push(child.id);
+      }
+    }
+    if (toArchive.length > 0) {
+      await tx.thread.updateMany({
+        where: { id: { in: toArchive } },
+        data: { status: "ARCHIVED" },
+      });
+    }
+
     return event;
   });
 

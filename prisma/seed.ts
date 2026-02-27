@@ -10,10 +10,10 @@ async function main() {
   // Create test user
   const passwordHash = await bcrypt.hash("password123", 10);
   const user = await prisma.user.upsert({
-    where: { email: "test@tenex.dev" },
+    where: { email: "test@twix.dev" },
     update: {},
     create: {
-      email: "test@tenex.dev",
+      email: "test@twix.dev",
       name: "Test User",
       passwordHash,
     },
@@ -25,7 +25,7 @@ async function main() {
   const conversation = await prisma.conversation.create({
     data: {
       userId: user.id,
-      title: "Welcome to Tenex",
+      title: "Welcome to Twix",
       threads: {
         create: {
           depth: 0,
@@ -35,7 +35,7 @@ async function main() {
               {
                 role: "ASSISTANT",
                 content:
-                  "Welcome to Tenex! I'm your AI assistant. You can highlight any text in my responses and open a tangent thread to explore sub-topics without disrupting our main conversation. Try it out!",
+                  "Welcome to Twix! I'm your AI assistant. You can highlight any text in my responses and open a tangent thread to explore sub-topics without disrupting our main conversation. Try it out!",
               },
             ],
           },

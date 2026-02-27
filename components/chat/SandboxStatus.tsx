@@ -26,9 +26,13 @@ export function SandboxStatus({ conversationId }: SandboxStatusProps) {
   }, [conversationId]);
 
   useEffect(() => {
-    checkSandbox();
+    // Initial check — fire-and-forget to avoid sync setState in effect
+    const timeout = setTimeout(checkSandbox, 0);
     const interval = setInterval(checkSandbox, 15_000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
   }, [checkSandbox]);
 
   if (!sandboxId) return null;

@@ -10,6 +10,10 @@ import {
   readSandboxFile,
   writeSandboxFile,
   listSandboxDir,
+  startServer,
+  getPreviewUrl,
+  killProcess,
+  getServerLogs,
 } from "@/lib/e2b";
 
 export async function POST(req: Request) {
@@ -215,6 +219,127 @@ export async function POST(req: Request) {
                       err instanceof Error
                         ? err.message
                         : "Failed to list directory",
+                  };
+                }
+              },
+            }),
+
+            startServer: tool({
+              description:
+                "Start a dev server in the background and get a live preview URL. Returns { url, pid, logs, listening }. Check the 'listening' field — if false, the server failed to start; read 'logs' to diagnose and fix the issue. If a server is already running on the same port, kill it first with killProcess. IMPORTANT: Only include the URL as a markdown link if listening=true.",
+              inputSchema: zodSchema(
+                z.object({
+                  command: z
+                    .string()
+                    .describe(
+                      "Server startup command (e.g. npm run dev, python -m http.server 8080)"
+                    ),
+                  port: z
+                    .number()
+                    .optional()
+                    .describe("Port the server listens on (default: 3000)"),
+                  workingDirectory: z
+                    .string()
+                    .optional()
+                    .describe("Working directory (default: /home/user)"),
+                })
+              ),
+              execute: async ({
+                command,
+                port,
+                workingDirectory,
+              }: {
+                command: string;
+                port?: number;
+                workingDirectory?: string;
+              }) => {
+                try {
+                  return await startServer(
+                    conversationId,
+                    command,
+                    port ?? 3000,
+                    workingDirectory
+                  );
+                } catch (err: unknown) {
+                  return {
+                    error:
+                      err instanceof Error
+                        ? err.message
+                        : "Failed to start server",
+                  };
+                }
+              },
+            }),
+
+            getPreviewUrl: tool({
+              description:
+                "Get the public URL for a port already running in the sandbox. Use when you need to re-share the preview URL without starting a new server.",
+              inputSchema: zodSchema(
+                z.object({
+                  port: z
+                    .number()
+                    .describe("Port number of the running server"),
+                })
+              ),
+              execute: async ({ port }: { port: number }) => {
+                try {
+                  const url = await getPreviewUrl(conversationId, port);
+                  return { url };
+                } catch (err: unknown) {
+                  return {
+                    error:
+                      err instanceof Error
+                        ? err.message
+                        : "Failed to get preview URL",
+                  };
+                }
+              },
+            }),
+
+            getServerLogs: tool({
+              description:
+                "Read the captured stdout/stderr logs for a background server process. Use this to diagnose why a server failed to start or is misbehaving. Returns { logs, running }.",
+              inputSchema: zodSchema(
+                z.object({
+                  pid: z
+                    .number()
+                    .describe("Process ID returned by startServer"),
+                })
+              ),
+              execute: async ({ pid }: { pid: number }) => {
+                try {
+                  return await getServerLogs(conversationId, pid);
+                } catch (err: unknown) {
+                  return {
+                    error:
+                      err instanceof Error
+                        ? err.message
+                        : "Failed to get server logs",
+                  };
+                }
+              },
+            }),
+
+            killProcess: tool({
+              description:
+                "Kill a running background process by PID. Use before restarting a server on the same port.",
+              inputSchema: zodSchema(
+                z.object({
+                  pid: z
+                    .number()
+                    .describe("Process ID returned by startServer"),
+                })
+              ),
+              execute: async ({ pid }: { pid: number }) => {
+                try {
+                  const killed = await killProcess(conversationId, pid);
+                  return { success: killed };
+                } catch (err: unknown) {
+                  return {
+                    error:
+                      err instanceof Error
+                        ? err.message
+                        : "Failed to kill process",
                   };
                 }
               },

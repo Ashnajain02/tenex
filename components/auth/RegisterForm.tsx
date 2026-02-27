@@ -50,10 +50,10 @@ export function RegisterForm() {
   }
 
   return (
-    <div className="rounded-xl border bg-white p-6 shadow-sm">
-      <h1 className="mb-1 text-2xl font-bold text-gray-900">Create account</h1>
-      <p className="mb-6 text-sm text-gray-500">
-        Get started with Tenex
+    <div className="rounded-xl p-6 shadow-sm" style={{ background: "#FFFFFF", border: "1px solid var(--color-border)" }}>
+      <h1 className="mb-1 text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>Create account</h1>
+      <p className="mb-6 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+        Get started with Twix
       </p>
 
       {error && (
@@ -64,7 +64,7 @@ export function RegisterForm() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
+          <label htmlFor="name" className="mb-1 block text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
             Name
           </label>
           <input
@@ -72,13 +72,14 @@ export function RegisterForm() {
             name="name"
             type="text"
             required
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2"
+            style={{ border: "1px solid var(--color-border)" }}
             placeholder="Your name"
           />
         </div>
 
         <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
+          <label htmlFor="email" className="mb-1 block text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
             Email
           </label>
           <input
@@ -86,13 +87,14 @@ export function RegisterForm() {
             name="email"
             type="email"
             required
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2"
+            style={{ border: "1px solid var(--color-border)" }}
             placeholder="you@example.com"
           />
         </div>
 
         <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium text-gray-700">
+          <label htmlFor="password" className="mb-1 block text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
             Password
           </label>
           <input
@@ -101,7 +103,8 @@ export function RegisterForm() {
             type="password"
             required
             minLength={6}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2"
+            style={{ border: "1px solid var(--color-border)" }}
             placeholder="••••••••"
           />
         </div>
@@ -109,15 +112,18 @@ export function RegisterForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="w-full rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 transition-colors"
+          style={{ background: "var(--color-accent)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-accent-hover)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-accent)")}
         >
           {loading ? "Creating account..." : "Create account"}
         </button>
       </form>
 
-      <p className="mt-4 text-center text-sm text-gray-500">
+      <p className="mt-4 text-center text-sm" style={{ color: "var(--color-text-secondary)" }}>
         Already have an account?{" "}
-        <Link href="/login" className="text-blue-600 hover:underline">
+        <Link href="/login" className="hover:underline" style={{ color: "var(--color-accent)" }}>
           Sign in
         </Link>
       </p>

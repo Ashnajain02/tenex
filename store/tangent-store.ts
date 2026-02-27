@@ -2,6 +2,9 @@ import { create } from "zustand";
 import type { TangentWindowState } from "@/types";
 
 interface TangentState {
+  /** Which conversation the tangent state is scoped to. */
+  conversationId: string | null;
+
   /**
    * Flat list of ALL currently open tangents (the tree nodes).
    * Grows until a tangent is explicitly Closed or Merged.
@@ -19,6 +22,15 @@ interface TangentState {
    * "main" = the main thread; otherwise a tangent threadId.
    */
   viewParentId: string;
+
+  /**
+   * Replace store state with server-provided tangent data.
+   * Called on page load and conversation switch.
+   */
+  hydrate: (conversationId: string, tangents: TangentWindowState[]) => void;
+
+  /** Clear all tangent state back to defaults. */
+  reset: () => void;
 
   /**
    * Add a new tangent. It immediately becomes the active child of its
@@ -46,9 +58,33 @@ interface TangentState {
 }
 
 export const useTangentStore = create<TangentState>((set) => ({
+  conversationId: null,
   openTangents: [],
   activeChildByParent: {},
   viewParentId: "main",
+
+  hydrate: (conversationId, tangents) =>
+    set(() => {
+      // Compute activeChildByParent: last entry per parent wins (server sorts by createdAt ASC)
+      const activeChildByParent: Record<string, string> = {};
+      for (const t of tangents) {
+        activeChildByParent[t.parentThreadId] = t.threadId;
+      }
+      return {
+        conversationId,
+        openTangents: tangents,
+        activeChildByParent,
+        viewParentId: "main",
+      };
+    }),
+
+  reset: () =>
+    set({
+      conversationId: null,
+      openTangents: [],
+      activeChildByParent: {},
+      viewParentId: "main",
+    }),
 
   openTangent: (tangent) =>
     set((state) => ({

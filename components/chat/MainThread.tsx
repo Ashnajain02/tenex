@@ -14,6 +14,8 @@ interface MainThreadProps {
   mergeEvents?: MergeEvent[];
   /** ID of the message that spawned the currently visible tangent panel */
   activeChildMessageId?: string;
+  /** The highlighted text within the active-child message */
+  activeHighlightedText?: string;
   onOpenTangent: (
     threadId: string,
     messageId: string,
@@ -33,6 +35,7 @@ export function MainThread({
   conversationId,
   mergeEvents = [],
   activeChildMessageId,
+  activeHighlightedText,
   onOpenTangent,
   initialMessages,
   refreshTrigger,
@@ -107,6 +110,7 @@ export function MainThread({
         isStreaming={status === "streaming"}
         mergeEvents={mergeEvents}
         activeChildMessageId={activeChildMessageId}
+        activeHighlightedText={activeHighlightedText}
         conversationId={conversationId}
         onOpenTangent={onOpenTangent}
       />

@@ -1,8 +1,11 @@
 "use client";
 
+import { useRef } from "react";
 import { useTextSelection } from "@/hooks/use-text-selection";
+import { useTextHighlight } from "@/hooks/use-text-highlight";
 import { MarkdownContent } from "./MarkdownContent";
 import { TextSelectionMenu } from "./TextSelectionMenu";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 interface MessageBubbleProps {
@@ -14,6 +17,7 @@ interface MessageBubbleProps {
   threadId: string;
   compact?: boolean;
   conversationId?: string;
+  highlightedText?: string;
   onOpenTangent: (
     threadId: string,
     messageId: string,
@@ -27,9 +31,14 @@ export function MessageBubble({
   threadId,
   compact,
   conversationId,
+  highlightedText,
   onOpenTangent,
 }: MessageBubbleProps) {
   const { ref, selectedText, selectionRect, clearSelection } = useTextSelection();
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Apply DOM-based text highlighting
+  useTextHighlight(contentRef, highlightedText, message.content);
 
   if (message.role === "system") return null;
 
@@ -37,14 +46,14 @@ export function MessageBubble({
 
   return (
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
-      {/* Assistant avatar dot */}
+      {/* Assistant avatar — logo */}
       {!isUser && (
-        <div
-          className={cn(
-            "flex-shrink-0 rounded-full mt-1 mr-3",
-            compact ? "h-5 w-5" : "h-6 w-6"
-          )}
-          style={{ background: "var(--color-accent)", opacity: 0.85 }}
+        <Image
+          src="/logo.svg"
+          alt=""
+          width={compact ? 20 : 24}
+          height={compact ? 20 : 24}
+          className={cn("flex-shrink-0 mt-1 mr-3", compact ? "h-5 w-5" : "h-6 w-6")}
         />
       )}
 
@@ -63,13 +72,15 @@ export function MessageBubble({
         )}
         style={isUser ? { background: "#2B2B2B" } : undefined}
       >
-        {isUser ? (
-          <p className={cn("whitespace-pre-wrap break-words leading-relaxed", compact ? "text-sm" : "text-[0.9375rem]")}>
-            {message.content}
-          </p>
-        ) : (
-          <MarkdownContent content={message.content} compact={compact} conversationId={conversationId} />
-        )}
+        <div ref={contentRef}>
+          {isUser ? (
+            <p className={cn("whitespace-pre-wrap break-words leading-relaxed", compact ? "text-sm" : "text-[0.9375rem]")}>
+              {message.content}
+            </p>
+          ) : (
+            <MarkdownContent content={message.content} compact={compact} conversationId={conversationId} />
+          )}
+        </div>
 
         {selectedText && selectionRect && (
           <TextSelectionMenu

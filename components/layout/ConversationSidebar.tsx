@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useConversationStore } from "@/store/conversation-store";
 import { useUIStore } from "@/store/ui-store";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 export function ConversationSidebar() {
@@ -92,9 +93,12 @@ export function ConversationSidebar() {
         className="flex items-center justify-between px-4 py-3 flex-shrink-0"
         style={{ borderBottom: "1px solid var(--color-border)" }}
       >
-        <span className="text-sm font-semibold tracking-wide" style={{ color: "var(--color-text-primary)" }}>
-          Tenex
-        </span>
+        <div className="flex items-center gap-2">
+          <Image src="/logo.svg" alt="" width={20} height={20} className="h-5 w-5" />
+          <span className="text-sm font-semibold tracking-tight" style={{ color: "var(--color-text-primary)" }}>
+            twix
+          </span>
+        </div>
         <button
           onClick={toggleSidebar}
           className="rounded-md p-1.5 transition-colors"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function ChatHomePage() {
   const router = useRouter();
@@ -8,9 +9,12 @@ export default function ChatHomePage() {
   return (
     <div className="flex h-full items-center justify-center">
       <div className="text-center">
-        <h1 className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>
-          Tenex
-        </h1>
+        <div className="flex items-center justify-center gap-3 mb-1">
+          <Image src="/logo.svg" alt="" width={32} height={32} className="h-8 w-8" />
+          <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--color-text-primary)" }}>
+            twix
+          </h1>
+        </div>
         <p className="mt-2 text-sm" style={{ color: "var(--color-text-secondary)" }}>
           Start a new conversation from the sidebar, or select an existing one.
         </p>

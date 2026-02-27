@@ -16,7 +16,9 @@ export function useTextSelection() {
 
   // Keep a ref to avoid stale-closure issues in document event listeners
   const stateRef = useRef(state);
-  stateRef.current = state;
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   // Set selection state when mouseup fires inside the bubble
   const handleMouseUp = useCallback(() => {

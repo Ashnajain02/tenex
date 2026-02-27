@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { MessageBubble } from "./MessageBubble";
 import { MergeIndicator } from "./MergeIndicator";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
@@ -19,6 +20,8 @@ interface MessageListProps {
   mergeEvents?: MergeEvent[];
   /** ID of the message that spawned the next tangent panel — highlighted with an accent indicator */
   activeChildMessageId?: string;
+  /** The specific text to highlight within the active-child message */
+  activeHighlightedText?: string;
   conversationId?: string;
   onOpenTangent: (
     threadId: string,
@@ -35,6 +38,7 @@ export function MessageList({
   compact,
   mergeEvents = [],
   activeChildMessageId,
+  activeHighlightedText,
   conversationId,
   onOpenTangent,
 }: MessageListProps) {
@@ -60,14 +64,8 @@ export function MessageList({
           <div className="flex flex-col items-center justify-center py-20">
             {!compact && (
               <>
-                <div
-                  className="mb-4 flex h-12 w-12 items-center justify-center rounded-full"
-                  style={{ background: "var(--color-accent)", opacity: 0.9 }}
-                >
-                  <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
+                <div className="mb-4">
+                  <Image src="/logo.svg" alt="" width={48} height={48} className="h-12 w-12" />
                 </div>
                 <p className="text-base font-medium" style={{ color: "var(--color-text-primary)" }}>
                   How can I help you today?
@@ -101,6 +99,11 @@ export function MessageList({
                 threadId={threadId}
                 compact={compact}
                 conversationId={conversationId}
+                highlightedText={
+                  message.id === activeChildMessageId
+                    ? activeHighlightedText
+                    : undefined
+                }
                 onOpenTangent={onOpenTangent}
               />
               {mergeMap.get(message.id)?.map((event) => (
@@ -113,17 +116,16 @@ export function MessageList({
         {/* Typing indicator */}
         {isStreaming && messages[messages.length - 1]?.role === "user" && (
           <div className={cn("flex items-center", compact ? "mt-3 gap-2" : "mt-6 gap-3")}>
-            {!compact && (
-              <div
-                className="h-6 w-6 rounded-full flex-shrink-0"
-                style={{ background: "var(--color-accent)", opacity: 0.85 }}
-              />
-            )}
-            <div className="flex gap-1 py-2">
-              <div className="h-2 w-2 animate-bounce rounded-full" style={{ background: "var(--color-text-muted, #9B9B9B)", animationDelay: "0ms" }} />
-              <div className="h-2 w-2 animate-bounce rounded-full" style={{ background: "var(--color-text-muted, #9B9B9B)", animationDelay: "150ms" }} />
-              <div className="h-2 w-2 animate-bounce rounded-full" style={{ background: "var(--color-text-muted, #9B9B9B)", animationDelay: "300ms" }} />
-            </div>
+            <Image
+              src="/logo.svg"
+              alt=""
+              width={compact ? 20 : 24}
+              height={compact ? 20 : 24}
+              className={cn("flex-shrink-0", compact ? "h-5 w-5" : "h-6 w-6")}
+            />
+            <span className="text-sm" style={{ color: "var(--color-text-muted, #9B9B9B)" }}>
+              Thinking...
+            </span>
           </div>
         )}
       </div>

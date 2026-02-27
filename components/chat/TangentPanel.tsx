@@ -8,6 +8,8 @@ interface TangentPanelProps {
   conversationId: string;
   /** ID of the message in this panel that spawned the next deeper tangent */
   activeChildMessageId?: string;
+  /** The highlighted text within the active-child message */
+  activeHighlightedText?: string;
   /** All sibling tangents (children of the same parent) — shown as tabs */
   siblings?: TangentWindowState[];
   /** Called when the user clicks a sibling tab */
@@ -31,6 +33,7 @@ export function TangentPanel({
   tangent,
   conversationId,
   activeChildMessageId,
+  activeHighlightedText,
   siblings,
   onSelectSibling,
   refreshTrigger,
@@ -151,6 +154,7 @@ export function TangentPanel({
         parentThreadId={tangent.parentThreadId}
         conversationId={conversationId}
         activeChildMessageId={activeChildMessageId}
+        activeHighlightedText={activeHighlightedText}
         refreshTrigger={refreshTrigger}
         mergeEvents={mergeEvents}
         onOpenTangent={onOpenTangent}

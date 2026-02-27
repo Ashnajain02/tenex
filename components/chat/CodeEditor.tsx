@@ -18,7 +18,7 @@ interface CodeEditorProps {
   autoFocus?: boolean;
 }
 
-const tenexTheme = EditorView.theme({
+const twixTheme = EditorView.theme({
   "&": {
     backgroundColor: "#1E1D1A",
     fontSize: "0.85em",
@@ -56,7 +56,7 @@ export function CodeEditor({
   const extensions = useMemo(() => {
     const exts: Extension[] = [];
 
-    exts.push(tenexTheme);
+    exts.push(twixTheme);
 
     if (language === "python" || language === "py") {
       exts.push(python());

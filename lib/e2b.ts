@@ -1,8 +1,16 @@
-import { Sandbox } from "@e2b/code-interpreter";
+import { Sandbox, type CommandHandle } from "@e2b/code-interpreter";
+
+interface ProcessInfo {
+  handle: CommandHandle;
+  logFile: string;
+  port: number;
+}
 
 interface SandboxEntry {
   sandbox: Sandbox;
   lastUsed: number;
+  /** Background processes (dev servers, etc.) keyed by PID */
+  processes: Map<number, ProcessInfo>;
 }
 
 // Persist across hot reloads in dev (same pattern as lib/prisma.ts)
@@ -41,6 +49,7 @@ async function getSandbox(conversationId: string): Promise<Sandbox> {
   sandboxes.set(conversationId, {
     sandbox,
     lastUsed: Date.now(),
+    processes: new Map(),
   });
 
   return sandbox;
@@ -173,7 +182,7 @@ export async function runCommand(
       stderr: result.stderr,
       exitCode: result.exitCode,
     };
-  } catch (err: unknown) {
+  } catch {
     // If sandbox died, retry once
     sandboxes.delete(conversationId);
     const fresh = await getSandbox(conversationId);
@@ -219,6 +228,112 @@ export async function listSandboxDir(
     name: e.name,
     type: e.type ?? "file",
   }));
+}
+
+/** Start a long-running server process in the background and return a public URL. */
+export async function startServer(
+  conversationId: string,
+  command: string,
+  port: number = 3000,
+  cwd?: string
+): Promise<{ url: string; pid: number; logs: string; listening: boolean }> {
+  const sandbox = await getSandbox(conversationId);
+  const entry = sandboxes.get(conversationId)!;
+
+  // Redirect all output to a log file so we can read it later
+  const logFile = `/tmp/server-${port}-${Date.now()}.log`;
+  const escapedCmd = command.replace(/'/g, "'\"'\"'");
+  const handle = await sandbox.commands.run(
+    `bash -c '${escapedCmd} >${logFile} 2>&1'`,
+    { background: true, cwd }
+  );
+
+  entry.processes.set(handle.pid, { handle, logFile, port });
+
+  // Wait for server to start (5s gives most servers enough time)
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+
+  // Check if the port is actually listening
+  let listening = false;
+  try {
+    const check = await sandbox.commands.run(
+      `ss -tlnp 2>/dev/null | grep -q ':${port} ' && echo UP || echo DOWN`,
+      { requestTimeoutMs: 5000 }
+    );
+    listening = check.stdout.trim() === "UP";
+  } catch {
+    // ss check failed — continue anyway
+  }
+
+  // Read whatever startup logs we have
+  let logs = "";
+  try {
+    logs = await sandbox.files.read(logFile, { format: "text" });
+  } catch {
+    // log file may not exist yet
+  }
+
+  const host = sandbox.getHost(port);
+  return {
+    url: `https://${host}`,
+    pid: handle.pid,
+    logs: logs.slice(0, 3000) || "(no output captured yet)",
+    listening,
+  };
+}
+
+/** Get the public URL for a port already running in the sandbox. */
+export async function getPreviewUrl(
+  conversationId: string,
+  port: number
+): Promise<string> {
+  const sandbox = await getSandbox(conversationId);
+  const host = sandbox.getHost(port);
+  return `https://${host}`;
+}
+
+/** Read the captured logs for a background server process. */
+export async function getServerLogs(
+  conversationId: string,
+  pid: number
+): Promise<{ logs: string; running: boolean }> {
+  const sandbox = await getSandbox(conversationId);
+  const entry = sandboxes.get(conversationId);
+  const proc = entry?.processes.get(pid);
+
+  // Read log file if we know it
+  let logs = "";
+  if (proc?.logFile) {
+    try {
+      logs = await sandbox.files.read(proc.logFile, { format: "text" });
+    } catch {
+      logs = "(could not read log file)";
+    }
+  }
+
+  // Check if process is still running
+  let running = false;
+  try {
+    const check = await sandbox.commands.run(`kill -0 ${pid} 2>/dev/null && echo YES || echo NO`, {
+      requestTimeoutMs: 5000,
+    });
+    running = check.stdout.trim() === "YES";
+  } catch {
+    // assume dead
+  }
+
+  return { logs: logs.slice(0, 5000) || "(no output)", running };
+}
+
+/** Kill a background process by PID. */
+export async function killProcess(
+  conversationId: string,
+  pid: number
+): Promise<boolean> {
+  const sandbox = await getSandbox(conversationId);
+  const entry = sandboxes.get(conversationId);
+  entry?.processes.delete(pid);
+  return await sandbox.commands.kill(pid);
 }
 
 // Periodic cleanup of idle sandboxes

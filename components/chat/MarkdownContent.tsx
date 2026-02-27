@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { CodeBlock } from "./CodeBlock";
+import { SandboxPreview } from "./SandboxPreview";
 
 interface MarkdownContentProps {
   content: string;
@@ -24,7 +25,7 @@ export function MarkdownContent({
   conversationId,
 }: MarkdownContentProps) {
   return (
-    <div className={compact ? "prose-tenex-sm" : "prose-tenex"}>
+    <div className={compact ? "prose-twix-sm" : "prose-twix"}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
@@ -53,6 +54,17 @@ export function MarkdownContent({
           // Avoid double <pre> wrapping — CodeBlock renders its own <pre>
           pre({ children }) {
             return <>{children}</>;
+          },
+          // Detect E2B sandbox URLs and render an inline preview iframe
+          a({ href, children }) {
+            if (href && /\be2b[.-]/.test(href)) {
+              return <SandboxPreview url={href} />;
+            }
+            return (
+              <a href={href} target="_blank" rel="noopener noreferrer">
+                {children}
+              </a>
+            );
           },
         }}
       >

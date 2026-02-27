@@ -44,7 +44,7 @@ function Logo({ variant = "dark" }: { variant?: "dark" | "white" }) {
         className="text-xl font-semibold tracking-tight"
         style={{ color: variant === "white" ? "#FFFFFF" : "#1A1A1A" }}
       >
-        tenex
+        twix
       </span>
     </Link>
   );
@@ -230,7 +230,7 @@ function HeroMockup() {
           <div className="h-3 w-3 rounded-full" style={{ background: "#E8E4DD" }} />
         </div>
         <div className="flex-1 text-center text-xs font-medium" style={{ color: "#6B6B6B" }}>
-          tenex
+          twix
         </div>
       </div>
 
@@ -353,7 +353,7 @@ const features = [
     ),
     title: "Real-time Intelligence",
     description:
-      "Tenex searches the web before answering, cites sources inline, and stays current. No more outdated training data — every answer is grounded in live information.",
+      "Twix searches the web before answering, cites sources inline, and stays current. No more outdated training data — every answer is grounded in live information.",
   },
 ];
 
@@ -459,7 +459,7 @@ function FeatureShowcase() {
               Always current, always cited
             </h3>
             <p className="mt-4 leading-relaxed" style={{ color: "#6B6B6B" }}>
-              Tenex automatically searches the web when your question involves current events, recent data, or anything beyond the model&apos;s training cutoff. No manual toggling — it just knows when to search.
+              Twix automatically searches the web when your question involves current events, recent data, or anything beyond the model&apos;s training cutoff. No manual toggling — it just knows when to search.
             </p>
             <p className="mt-3 leading-relaxed" style={{ color: "#6B6B6B" }}>
               Every claim is cited inline with clickable source links. You always know where the information came from and can verify it yourself.
@@ -616,7 +616,7 @@ const steps = [
     step: "01",
     title: "Start a conversation",
     description:
-      "Ask anything — from debugging code to researching a topic. Tenex responds with real-time web search, code, and detailed explanations.",
+      "Ask anything — from debugging code to researching a topic. Twix responds with real-time web search, code, and detailed explanations.",
   },
   {
     step: "02",
@@ -690,7 +690,7 @@ function CTA({ isLoggedIn }: { isLoggedIn: boolean }) {
             Ready to think differently?
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-lg leading-relaxed" style={{ color: "#6B6B6B" }}>
-            Join Tenex and experience conversations that branch, code that runs, and answers that stay current.
+            Join Twix and experience conversations that branch, code that runs, and answers that stay current.
           </p>
           <div className="mt-8">
             {isLoggedIn ? (
@@ -750,7 +750,7 @@ function Footer() {
           style={{ borderColor: "rgba(255,255,255,0.1)" }}
         >
           <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-            &copy; {new Date().getFullYear()} Tenex. All rights reserved.
+            &copy; {new Date().getFullYear()} Twix. All rights reserved.
           </p>
           <div className="flex gap-6">
             <span className="text-xs cursor-default" style={{ color: "rgba(255,255,255,0.4)" }}>Privacy</span>

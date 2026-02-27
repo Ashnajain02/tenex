@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tenex — Think deeper. Build faster. Branch freely.",
+  title: "Twix — Think deeper. Build faster. Branch freely.",
   description:
     "The AI workspace where conversations branch like your thoughts. Explore tangents, write and run code in a cloud sandbox, and search the web in real time.",
 };

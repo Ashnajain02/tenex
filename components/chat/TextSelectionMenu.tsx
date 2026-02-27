@@ -48,7 +48,7 @@ export function TextSelectionMenu({
 
   return (
     <div
-      ref={refs.setFloating}
+      ref={refs.setFloating} // eslint-disable-line react-hooks/refs -- callback ref from floating-ui, not a .current access
       style={floatingStyles}
       className="z-50 rounded-lg border bg-white p-1 shadow-lg"
     >

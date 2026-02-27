@@ -6,7 +6,8 @@ import { MainThread } from "./MainThread";
 import { TangentPanel } from "./TangentPanel";
 import { useTangentStore } from "@/store/tangent-store";
 import { useConversationStore } from "@/store/conversation-store";
-import type { MergeEvent } from "@/types";
+import { reconstructTangentState } from "@/lib/tangent-utils";
+import type { MergeEvent, TangentWindowState } from "@/types";
 
 interface ChatPageProps {
   conversationId: string;
@@ -16,24 +17,65 @@ interface ChatPageProps {
     role: "user" | "assistant" | "system";
     content: string;
   }>;
+  initialTangents?: TangentWindowState[];
 }
 
 export function ChatPage({
   conversationId,
   mainThreadId,
   initialMessages,
+  initialTangents,
 }: ChatPageProps) {
   const router = useRouter();
 
   const openTangents = useTangentStore((s) => s.openTangents);
   const activeChildByParent = useTangentStore((s) => s.activeChildByParent);
   const viewParentId = useTangentStore((s) => s.viewParentId);
+  const storeConversationId = useTangentStore((s) => s.conversationId);
+  const hydrate = useTangentStore((s) => s.hydrate);
   const openTangentAction = useTangentStore((s) => s.openTangent);
   const closeTangent = useTangentStore((s) => s.closeTangent);
   const navigateTo = useTangentStore((s) => s.navigateTo);
   const setActiveChild = useTangentStore((s) => s.setActiveChild);
 
   const { addConversation } = useConversationStore();
+
+  // Hydrate tangent store from server data on mount or conversation switch.
+  // First hydrate from server-provided props (fast SSR path), then fetch
+  // fresh data from the API to handle stale RSC payloads from Next.js
+  // Router Cache (e.g. navigating back to a conversation after branching).
+  useEffect(() => {
+    if (storeConversationId !== conversationId) {
+      hydrate(conversationId, initialTangents ?? []);
+    }
+
+    // Client-side fetch ensures we always have the latest tangent state
+    fetch(`/api/conversations/${conversationId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data?.threads) return;
+        const main = data.threads.find(
+          (t: { parentThreadId: string | null }) => !t.parentThreadId
+        );
+        if (!main) return;
+        const fresh = reconstructTangentState(data.threads, main.id);
+        // Only re-hydrate if the tangent set actually changed
+        const currentIds = useTangentStore
+          .getState()
+          .openTangents.map((t) => t.threadId)
+          .sort()
+          .join(",");
+        const freshIds = fresh
+          .map((t) => t.threadId)
+          .sort()
+          .join(",");
+        if (currentIds !== freshIds) {
+          hydrate(conversationId, fresh);
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
 
   // Main-thread state
   const [mergeEvents, setMergeEvents] = useState<MergeEvent[]>([]);
@@ -109,7 +151,7 @@ export function ChatPage({
         // silently fail
       }
     },
-    [conversationId, openTangentAction]
+    [conversationId, mainThreadId, openTangentAction]
   );
 
   // Handle merging a tangent
@@ -158,6 +200,13 @@ export function ChatPage({
 
         const { conversation } = await res.json();
 
+        // Archive the thread in DB so it doesn't reappear as an open tangent
+        await fetch(`/api/threads/${threadId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "ARCHIVED" }),
+        }).catch(() => {});
+
         addConversation(conversation);
         closeTangent(threadId);
         router.push(`/c/${conversation.id}`);
@@ -166,6 +215,23 @@ export function ChatPage({
       }
     },
     [closeTangent, addConversation, router]
+  );
+
+  // Handle explicitly closing a tangent (X button) — archives in DB + removes from store
+  const handleClose = useCallback(
+    async (threadId: string) => {
+      try {
+        await fetch(`/api/threads/${threadId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "ARCHIVED" }),
+        });
+      } catch {
+        // If API fails, still close locally. Thread reappears on next load (fail-open).
+      }
+      closeTangent(threadId);
+    },
+    [closeTangent]
   );
 
   // ── Panel computation ──────────────────────────────────────────────────────
@@ -189,6 +255,8 @@ export function ChatPage({
     activeChildByParent["main"] ?? ""
   );
   const mainActiveChildMessageId = mainActiveChildTangent?.parentMessageId;
+  const mainActiveChildHighlightedText = mainActiveChildTangent?.highlightedText;
+  const leftActiveChildHighlightedText = rightTangent?.highlightedText;
 
   // ── Breadcrumb computation ─────────────────────────────────────────────────
   // 1. Walk UP from viewParentId → "main" to build the left-side path.
@@ -330,6 +398,7 @@ export function ChatPage({
             conversationId={conversationId}
             mergeEvents={mergeEvents}
             activeChildMessageId={mainActiveChildMessageId}
+            activeHighlightedText={mainActiveChildHighlightedText}
             onOpenTangent={handleOpenTangent}
             initialMessages={initialMessages}
             refreshTrigger={refreshTrigger}
@@ -357,6 +426,7 @@ export function ChatPage({
                 tangent={tangent}
                 conversationId={conversationId}
                 activeChildMessageId={isLeft ? leftActiveChildMessageId : undefined}
+                activeHighlightedText={isLeft ? leftActiveChildHighlightedText : undefined}
                 siblings={isRight ? rightSiblings : undefined}
                 onSelectSibling={
                   isRight
@@ -368,7 +438,7 @@ export function ChatPage({
                 onOpenTangent={handleOpenTangent}
                 onMerge={handleMerge}
                 onBranch={handleBranch}
-                onClose={closeTangent}
+                onClose={handleClose}
               />
             </div>
           );

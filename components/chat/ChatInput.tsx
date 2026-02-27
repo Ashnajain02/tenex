@@ -315,7 +315,7 @@ export function ChatInput({
                   handleInput();
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder={placeholder || "Message Tenex…"}
+                placeholder={placeholder || "Message Twix…"}
                 rows={1}
                 className="flex-1 resize-none bg-transparent text-[0.9375rem] leading-relaxed outline-none placeholder:text-gray-400"
                 style={{
