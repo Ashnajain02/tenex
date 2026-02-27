@@ -12,6 +12,7 @@ export async function POST(
   if (!session?.user?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
+  
 
   const { threadId } = await params;
 

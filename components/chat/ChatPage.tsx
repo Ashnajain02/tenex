@@ -187,8 +187,10 @@ export function ChatPage({
         // Use the merge event returned by the API directly — no extra fetch
         const newMergeEvent: MergeEvent = await res.json();
 
-        closeTangent(threadId);
-
+        // Update merge events FIRST, then close tangent. This avoids a render
+        // race where Zustand's closeTangent triggers an immediate re-render
+        // (TangentPanel unmounts) while React state updates (merge indicator
+        // insertion) are still pending — which causes "insertBefore" DOM errors.
         if (!targetThreadId || targetThreadId === "main" || targetThreadId === mainThreadId) {
           setMergeEvents((prev) => [...prev, newMergeEvent]);
           setRefreshTrigger((n) => n + 1);
@@ -202,6 +204,9 @@ export function ChatPage({
             [targetThreadId]: (prev[targetThreadId] ?? 0) + 1,
           }));
         }
+
+        // Close tangent AFTER merge state is queued — React batches these
+        closeTangent(threadId);
       } catch {
         // silently fail
       }

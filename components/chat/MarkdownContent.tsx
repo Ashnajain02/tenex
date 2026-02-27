@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import React, { Component, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -12,6 +12,37 @@ interface MarkdownContentProps {
   content: string;
   compact?: boolean;
   conversationId?: string;
+}
+
+/**
+ * Error boundary that catches DOM reconciliation errors (e.g. "insertBefore")
+ * from ReactMarkdown/KaTeX and recovers by forcing a clean remount.
+ */
+class MarkdownErrorBoundary extends Component<
+  { children: React.ReactNode; fallbackKey: string },
+  { hasError: boolean; errorCount: number }
+> {
+  state = { hasError: false, errorCount: 0 };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidUpdate(prevProps: { fallbackKey: string }) {
+    // When content changes (new fallbackKey), clear the error state so
+    // the component re-renders with the updated content.
+    if (prevProps.fallbackKey !== this.props.fallbackKey && this.state.hasError) {
+      this.setState({ hasError: false, errorCount: this.state.errorCount + 1 });
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      // Return nothing briefly — componentDidUpdate will clear on next content change
+      return null;
+    }
+    return this.props.children;
+  }
 }
 
 /**
@@ -36,6 +67,7 @@ export function MarkdownContent({
   }, [content]);
 
   return (
+    <MarkdownErrorBoundary fallbackKey={structureKey}>
     <div className={compact ? "prose-twix-sm" : "prose-twix"}>
       <ReactMarkdown
         key={structureKey}
@@ -139,5 +171,6 @@ export function MarkdownContent({
         {content}
       </ReactMarkdown>
     </div>
+    </MarkdownErrorBoundary>
   );
 }

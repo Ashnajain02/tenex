@@ -87,6 +87,10 @@ When the AI starts a dev server, it returns a public URL via E2B's `getHost()`. 
 | Code sandbox | **E2B** | Cloud Linux VMs for running code, servers, and commands |
 | Testing | **Vitest** + **Testing Library** | Unit testing framework |
 
+## Live Demo
+
+Deployed on **Vercel** with **Neon** (serverless PostgreSQL): [twix-chat.vercel.app](https://twix-chat.vercel.app/)
+
 ## Setup
 
 ### Prerequisites
