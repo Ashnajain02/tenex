@@ -173,24 +173,30 @@ export function ChatPage({
   const handleMerge = useCallback(
     async (threadId: string) => {
       try {
+        // Read parent BEFORE the async call (store might change)
+        const currentTangents = useTangentStore.getState().openTangents;
+        const merged = currentTangents.find((t) => t.threadId === threadId);
+        const targetThreadId = merged?.parentThreadId ?? null;
+
         const res = await fetch(`/api/threads/${threadId}/merge`, {
           method: "POST",
         });
 
         if (!res.ok) return;
 
-        // Read parent BEFORE closing (store mutation happens in closeTangent)
-        const currentTangents = useTangentStore.getState().openTangents;
-        const merged = currentTangents.find((t) => t.threadId === threadId);
-        const targetThreadId = merged?.parentThreadId ?? null;
+        // Use the merge event returned by the API directly — no extra fetch
+        const newMergeEvent: MergeEvent = await res.json();
 
         closeTangent(threadId);
 
         if (!targetThreadId || targetThreadId === "main" || targetThreadId === mainThreadId) {
-          fetchThreadMergeEvents(mainThreadId, true);
+          setMergeEvents((prev) => [...prev, newMergeEvent]);
           setRefreshTrigger((n) => n + 1);
         } else {
-          fetchThreadMergeEvents(targetThreadId, false);
+          setThreadMergeEvents((prev) => ({
+            ...prev,
+            [targetThreadId]: [...(prev[targetThreadId] || []), newMergeEvent],
+          }));
           setThreadRefreshTriggers((prev) => ({
             ...prev,
             [targetThreadId]: (prev[targetThreadId] ?? 0) + 1,
@@ -200,7 +206,7 @@ export function ChatPage({
         // silently fail
       }
     },
-    [closeTangent, mainThreadId, fetchThreadMergeEvents]
+    [closeTangent, mainThreadId]
   );
 
   // Handle branching a tangent into its own standalone conversation
@@ -215,8 +221,8 @@ export function ChatPage({
 
         const { conversation } = await res.json();
 
-        // Archive the thread in DB so it doesn't reappear as an open tangent
-        await fetch(`/api/threads/${threadId}`, {
+        // Fire-and-forget: archive the thread in DB (non-blocking)
+        fetch(`/api/threads/${threadId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: "ARCHIVED" }),

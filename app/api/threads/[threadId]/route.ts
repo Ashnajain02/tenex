@@ -53,7 +53,7 @@ export async function PATCH(
 
   const thread = await prisma.thread.findUnique({
     where: { id: threadId },
-    include: { conversation: true },
+    include: { conversation: { select: { userId: true, id: true } } },
   });
 
   if (!thread || thread.conversation.userId !== session.user.id) {

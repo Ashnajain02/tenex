@@ -74,7 +74,7 @@ export async function buildContextForThread(
     if (thread.highlightedText) {
       context.push({
         role: "system",
-        content: `[Tangent thread opened. The user highlighted the following text to explore further: "${thread.highlightedText}". Focus your responses on this topic.]`,
+        content: `[Tangent thread opened. The user highlighted the following text to explore further: "${thread.highlightedText}". Focus your responses on this topic. Use the same formatting rules as the main thread — all source citations must be clickable markdown links with real URLs, never plain text labels like [Source].]`,
       });
     }
   }
