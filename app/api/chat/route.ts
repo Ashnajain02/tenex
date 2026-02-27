@@ -17,12 +17,15 @@ import {
 } from "@/lib/e2b";
 
 export async function POST(req: Request) {
+  const requestStart = Date.now();
   const session = await auth();
   if (!session?.user?.id) {
+    console.log("[chat] Unauthorized request");
     return new Response("Unauthorized", { status: 401 });
   }
 
   const { threadId, messages } = await req.json();
+  console.log(`[chat] Request from user=${session.user.id} thread=${threadId} messages=${messages.length}`);
 
   // Verify thread ownership
   const thread = await prisma.thread.findUnique({
@@ -31,11 +34,13 @@ export async function POST(req: Request) {
   });
 
   if (!thread || thread.conversation.userId !== session.user.id) {
+    console.log(`[chat] Thread not found or unauthorized: ${threadId}`);
     return new Response("Not found", { status: 404 });
   }
 
   // Build the full recursive context for this thread
   const contextMessages = await buildContextForThread(threadId);
+  console.log(`[chat] Context built: ${contextMessages.length} messages (depth=${thread.depth})`);
 
   // Extract the latest user message from the client payload
   const latestMessage = messages[messages.length - 1];
@@ -46,6 +51,8 @@ export async function POST(req: Request) {
       .join("") ||
     latestMessage.content ||
     "";
+
+  console.log(`[chat] User message: "${latestContent.slice(0, 100)}${latestContent.length > 100 ? "..." : ""}"`);
 
   // Persist the user message
   await prisma.message.create({
@@ -80,12 +87,15 @@ export async function POST(req: Request) {
             };
           }
           try {
+            console.log(`[tool:webSearch] query="${query}"`);
+            const searchStart = Date.now();
             const response = await tavilyClient.search(query, {
               maxResults: 7,
               searchDepth: "advanced",
               includeAnswer: true,
               days: 90,
             });
+            console.log(`[tool:webSearch] ${response.results.length} results in ${Date.now() - searchStart}ms`);
             return {
               answer: response.answer ?? null,
               results: response.results.slice(0, 5).map((r) => ({
@@ -94,7 +104,8 @@ export async function POST(req: Request) {
                 snippet: r.content?.slice(0, 1000),
               })),
             };
-          } catch {
+          } catch (err) {
+            console.error(`[tool:webSearch] Error:`, err);
             return { error: "Search request failed" };
           }
         },
@@ -122,13 +133,18 @@ export async function POST(req: Request) {
                 command: string;
                 workingDirectory?: string;
               }) => {
+                console.log(`[tool:runCommand] ${command}${workingDirectory ? ` (cwd: ${workingDirectory})` : ""}`);
                 try {
-                  return await runCommand(
+                  const cmdStart = Date.now();
+                  const result = await runCommand(
                     conversationId,
                     command,
                     workingDirectory
                   );
+                  console.log(`[tool:runCommand] exit=${result.exitCode} in ${Date.now() - cmdStart}ms`);
+                  return result;
                 } catch (err: unknown) {
+                  console.error(`[tool:runCommand] Error:`, err);
                   return {
                     stdout: "",
                     stderr:
@@ -150,10 +166,13 @@ export async function POST(req: Request) {
                 })
               ),
               execute: async ({ path }: { path: string }) => {
+                console.log(`[tool:readFile] ${path}`);
                 try {
                   const content = await readSandboxFile(conversationId, path);
+                  console.log(`[tool:readFile] ${content.length} chars`);
                   return { content };
                 } catch (err: unknown) {
+                  console.error(`[tool:readFile] Error reading ${path}:`, err);
                   return {
                     error:
                       err instanceof Error ? err.message : "Failed to read file",
@@ -180,10 +199,12 @@ export async function POST(req: Request) {
                 path: string;
                 content: string;
               }) => {
+                console.log(`[tool:writeFile] ${path} (${content.length} chars)`);
                 try {
                   await writeSandboxFile(conversationId, path, content);
                   return { success: true, path };
                 } catch (err: unknown) {
+                  console.error(`[tool:writeFile] Error writing ${path}:`, err);
                   return {
                     error:
                       err instanceof Error
@@ -207,13 +228,16 @@ export async function POST(req: Request) {
                 })
               ),
               execute: async ({ path }: { path: string }) => {
+                console.log(`[tool:listDir] ${path || "/home/user"}`);
                 try {
                   const entries = await listSandboxDir(
                     conversationId,
                     path || "/home/user"
                   );
+                  console.log(`[tool:listDir] ${entries.length} entries`);
                   return { entries };
                 } catch (err: unknown) {
+                  console.error(`[tool:listDir] Error:`, err);
                   return {
                     error:
                       err instanceof Error
@@ -253,14 +277,19 @@ export async function POST(req: Request) {
                 port?: number;
                 workingDirectory?: string;
               }) => {
+                const p = port ?? 3000;
+                console.log(`[tool:startServer] "${command}" on port ${p}${workingDirectory ? ` (cwd: ${workingDirectory})` : ""}`);
                 try {
-                  return await startServer(
+                  const result = await startServer(
                     conversationId,
                     command,
-                    port ?? 3000,
+                    p,
                     workingDirectory
                   );
+                  console.log(`[tool:startServer] pid=${result.pid} listening=${result.listening} url=${result.url}`);
+                  return result;
                 } catch (err: unknown) {
+                  console.error(`[tool:startServer] Error:`, err);
                   return {
                     error:
                       err instanceof Error
@@ -351,7 +380,16 @@ export async function POST(req: Request) {
     // Allow up to 10 tool-call steps for complex dev workflows
     stopWhen: stepCountIs(10),
 
-    async onFinish({ text }) {
+    async onFinish({ text, usage, steps }) {
+      const elapsed = Date.now() - requestStart;
+      const toolCalls = steps?.reduce((sum, s) => sum + (s.toolCalls?.length ?? 0), 0) ?? 0;
+      console.log(
+        `[chat] Completed in ${elapsed}ms | ` +
+        `tokens: ${usage?.promptTokens ?? "?"}→${usage?.completionTokens ?? "?"} | ` +
+        `steps: ${steps?.length ?? "?"} | tool calls: ${toolCalls} | ` +
+        `response: ${text ? `${text.length} chars` : "(no text)"}`
+      );
+
       // Only persist if there is actual assistant text (tool-only steps produce no text)
       if (text) {
         await prisma.message.create({
@@ -370,19 +408,21 @@ export async function POST(req: Request) {
         const msgCount = await prisma.message.count({ where: { threadId } });
         if (msgCount <= 3) {
           try {
+            console.log(`[chat] Generating auto-title...`);
             const { text: rawTitle } = await generateText({
               model: chatModel,
               prompt: `In 4 words or fewer, write a short title for a conversation that starts with this message: "${latestContent.slice(0, 300)}". Reply with only the title — no quotes, no punctuation at the end.`,
             });
             const title = rawTitle.trim().replace(/^["']|["']$/g, "").slice(0, 50);
             if (title) {
+              console.log(`[chat] Auto-title: "${title}"`);
               await prisma.conversation.update({
                 where: { id: thread.conversationId },
                 data: { title },
               });
             }
-          } catch {
-            // silently skip if title generation fails
+          } catch (err) {
+            console.error(`[chat] Auto-title failed:`, err);
           }
         }
       }

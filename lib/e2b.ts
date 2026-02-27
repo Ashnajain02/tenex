@@ -182,8 +182,17 @@ export async function runCommand(
       stderr: result.stderr,
       exitCode: result.exitCode,
     };
-  } catch {
-    // If sandbox died, retry once
+  } catch (err: unknown) {
+    // If it's a user error (bad cwd, invalid args), don't retry — return it as a failed command
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("does not exist") || msg.includes("invalid_argument") || msg.includes("InvalidArgumentError")) {
+      return {
+        stdout: "",
+        stderr: msg,
+        exitCode: 1,
+      };
+    }
+    // Otherwise sandbox may have died — retry once with a fresh sandbox
     sandboxes.delete(conversationId);
     const fresh = await getSandbox(conversationId);
     const result = await fresh.commands.run(cmd, {
