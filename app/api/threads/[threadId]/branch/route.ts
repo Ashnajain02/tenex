@@ -6,7 +6,8 @@ import { chatModel } from "@/lib/ai";
 
 // POST: Branch a tangent thread into its own standalone conversation.
 // Copies the tangent's messages into a new main thread so the user can
-// continue the conversation independently.
+// continue the conversation independently. Preserves merge events so
+// the MergeIndicator UI works exactly the same.
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ threadId: string }> }
@@ -19,12 +20,20 @@ export async function POST(
 
   const { threadId } = await params;
 
-  // Fetch the source thread and its messages
+  // Fetch the source thread with messages and any merge events targeting it
   const sourceThread = await prisma.thread.findUnique({
     where: { id: threadId },
     include: {
       messages: { orderBy: { createdAt: "asc" } },
       conversation: { select: { userId: true } },
+      mergesAsTarget: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          sourceThreadId: true,
+          afterMessageId: true,
+          summary: true,
+        },
+      },
     },
   });
 
@@ -37,9 +46,7 @@ export async function POST(
     ? sourceThread.highlightedText.slice(0, 50)
     : "Branched conversation";
 
-  // Copy only USER and ASSISTANT messages from the tangent (SYSTEM messages
-  // in the source thread are context-builder artifacts, not stored messages,
-  // but filter defensively anyway)
+  // Copy only USER and ASSISTANT messages (filter out SYSTEM)
   const sourceMessages = sourceThread.messages
     .filter((m) => m.role !== "SYSTEM")
     .map((m) => ({
@@ -48,16 +55,15 @@ export async function POST(
       createdAt: m.createdAt,
     }));
 
-  // Preamble messages for the new thread:
-  //   1. Hidden SYSTEM message — gives the AI full branching context
-  //   2. Visible ASSISTANT context bubble — styled callout showing the highlighted text
-  //
-  // We anchor the preamble timestamps to BEFORE the first source message so
-  // that sorting by createdAt ASC always puts the context bubble at the top.
-  const firstMessageTime =
-    sourceMessages[0]?.createdAt ?? new Date();
-  const systemTime = new Date(firstMessageTime.getTime() - 2000); // 2 s before
-  const bubbleTime = new Date(firstMessageTime.getTime() - 1000); // 1 s before
+  // Track which old message IDs we need to map (for merge events)
+  const oldMessageIds = sourceThread.messages
+    .filter((m) => m.role !== "SYSTEM")
+    .map((m) => m.id);
+
+  // Preamble messages for the new thread
+  const firstMessageTime = sourceMessages[0]?.createdAt ?? new Date();
+  const systemTime = new Date(firstMessageTime.getTime() - 2000);
+  const bubbleTime = new Date(firstMessageTime.getTime() - 1000);
 
   const preamble: Array<{
     role: "SYSTEM" | "ASSISTANT";
@@ -78,8 +84,11 @@ export async function POST(
       ]
     : [];
 
-  // Create a new conversation with a main thread
+  const preambleCount = preamble.length;
+
+  // Create conversation + thread + messages, then replicate merge events
   const result = await prisma.$transaction(async (tx) => {
+    // Create conversation with thread and messages
     const newConversation = await tx.conversation.create({
       data: {
         userId,
@@ -94,10 +103,53 @@ export async function POST(
           },
         },
       },
-      select: { id: true, title: true, updatedAt: true, createdAt: true },
+      include: {
+        threads: {
+          include: {
+            messages: {
+              orderBy: { createdAt: "asc" },
+              select: { id: true },
+            },
+          },
+        },
+      },
     });
 
-    return { conversation: newConversation };
+    const newThread = newConversation.threads[0];
+    const newMessageIds = newThread.messages.map((m) => m.id);
+
+    // Build old→new message ID mapping (skip preamble messages)
+    const oldToNewId = new Map<string, string>();
+    for (let i = 0; i < oldMessageIds.length; i++) {
+      const newIdx = preambleCount + i;
+      if (newIdx < newMessageIds.length) {
+        oldToNewId.set(oldMessageIds[i], newMessageIds[newIdx]);
+      }
+    }
+
+    // Replicate merge events so MergeIndicator works identically
+    for (const merge of sourceThread.mergesAsTarget) {
+      const newAfterMessageId = oldToNewId.get(merge.afterMessageId);
+      if (newAfterMessageId) {
+        await tx.mergeEvent.create({
+          data: {
+            sourceThreadId: merge.sourceThreadId, // points to original merged thread (still in DB)
+            targetThreadId: newThread.id,
+            afterMessageId: newAfterMessageId,
+            summary: merge.summary,
+          },
+        });
+      }
+    }
+
+    return {
+      conversation: {
+        id: newConversation.id,
+        title: newConversation.title,
+        updatedAt: newConversation.updatedAt,
+        createdAt: newConversation.createdAt,
+      },
+    };
   });
 
   // Fire-and-forget: generate a better AI title and backfill it
