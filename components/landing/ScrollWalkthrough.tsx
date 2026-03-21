@@ -87,6 +87,7 @@ function AssistantText({
 export function ScrollWalkthrough() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [p, setP] = useState(0);
+  const [mergeModalOpen, setMergeModalOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => {
@@ -166,8 +167,14 @@ export function ScrollWalkthrough() {
             </div>
           </div>
 
-          {/* Main chat */}
-          <div className="flex flex-col min-w-0 relative" style={{ flex: "1 1 0%" }}>
+          {/* Main chat — on mobile: shrinks to 30% when tangent is open */}
+          <div
+            className="flex flex-col min-w-0 relative"
+            style={{
+              flex: "1 1 0%",
+              transition: "flex 0.5s cubic-bezier(0.22,1,0.36,1)",
+            }}
+          >
             <div className="flex-1 overflow-hidden px-4 py-4 sm:px-6 sm:py-6">
               <div className="mx-auto max-w-2xl space-y-4 sm:space-y-5">
                 {/* Empty state */}
@@ -223,7 +230,7 @@ export function ScrollWalkthrough() {
                   </div>
                 )}
 
-                {/* Merge indicator */}
+                {/* Merge indicator — clickable to view merged conversation */}
                 {merged && (
                   <div
                     className="flex items-center gap-2"
@@ -231,18 +238,35 @@ export function ScrollWalkthrough() {
                       opacity: merged ? 1 : 0,
                       transform: `translateX(${merged ? 0 : -16}px)`,
                       transition: "opacity 0.5s ease, transform 0.5s ease",
+                      pointerEvents: "auto",
                     }}
                   >
                     <div className="h-px flex-1" style={{ background: "var(--color-border)" }} />
-                    <div
-                      className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
-                      style={{ background: "rgba(34,197,94,0.08)", color: "var(--color-success)" }}
+                    <button
+                      onClick={() => setMergeModalOpen(true)}
+                      className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium cursor-pointer transition-all"
+                      style={{
+                        background: "rgba(34,197,94,0.08)",
+                        color: "var(--color-success)",
+                        border: "none",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "rgba(34,197,94,0.15)";
+                        e.currentTarget.style.transform = "scale(1.05)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "rgba(34,197,94,0.08)";
+                        e.currentTarget.style.transform = "scale(1)";
+                      }}
                     >
                       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                       Merged: &quot;{HIGHLIGHT_PHRASE}&quot;
-                    </div>
+                      <svg className="h-3 w-3 ml-0.5" style={{ opacity: 0.6 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
                     <div className="h-px flex-1" style={{ background: "var(--color-border)" }} />
                   </div>
                 )}
@@ -316,9 +340,9 @@ export function ScrollWalkthrough() {
             </div>
           </div>
 
-          {/* Tangent panel — side-by-side on lg, stacks below on mobile */}
+          {/* Tangent panel — side-by-side 50/50 on lg, 70/30 stacked on mobile */}
           <div
-            className="flex flex-col border-t lg:border-t-0 lg:border-l"
+            className={`flex flex-col border-t lg:border-t-0 lg:border-l ${tOpen ? "wt-tangent-mobile-open" : ""}`}
             style={{
               borderColor: "var(--color-border)",
               background: "var(--color-bg-base)",
@@ -407,6 +431,80 @@ export function ScrollWalkthrough() {
             }}
           />
         </div>
+
+        {/* Merge modal — shows full tangent conversation */}
+        {mergeModalOpen && (
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+            style={{
+              background: "rgba(0,0,0,0.4)",
+              backdropFilter: "blur(4px)",
+              pointerEvents: "auto",
+            }}
+            onClick={() => setMergeModalOpen(false)}
+          >
+            <div
+              className="w-full max-w-lg rounded-xl border shadow-2xl overflow-hidden"
+              style={{
+                background: "var(--color-bg-base)",
+                borderColor: "var(--color-border)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal header */}
+              <div
+                className="flex items-center justify-between px-5 py-3 border-b"
+                style={{ borderColor: "var(--color-border)", background: "var(--color-bg-sidebar)" }}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className="h-2 w-2 rounded-full"
+                    style={{ background: "var(--color-success)" }}
+                  />
+                  <span className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
+                    Merged tangent: &quot;{HIGHLIGHT_PHRASE}&quot;
+                  </span>
+                </div>
+                <button
+                  onClick={() => setMergeModalOpen(false)}
+                  className="rounded-md p-1 transition-colors"
+                  style={{ color: "var(--color-text-muted)" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-bg-hover)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Modal body — tangent conversation */}
+              <div className="px-5 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+                {/* Tangent user message */}
+                <div className="flex justify-end">
+                  <div
+                    className="max-w-[85%] rounded-2xl px-4 py-3 text-sm"
+                    style={{
+                      background: "var(--color-bg-user-msg)",
+                      color: "var(--color-text-primary)",
+                      border: "1px solid var(--color-border-subtle)",
+                    }}
+                  >
+                    {TANGENT_USER_MSG}
+                  </div>
+                </div>
+
+                {/* Tangent assistant message */}
+                <div className="flex items-start gap-2.5">
+                  <Image src="/logo.svg" alt="" width={24} height={24} className="h-6 w-6 mt-1 shrink-0 opacity-70" />
+                  <div className="text-sm leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
+                    <Md text={TANGENT_FULL} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

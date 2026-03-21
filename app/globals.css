@@ -486,6 +486,13 @@ body {
   animation: scroll-hint-bounce 2s ease-in-out infinite;
 }
 
+/* ── Mobile tangent panel takes ~75% when open, main chat shrinks to ~25% ── */
+@media (max-width: 1023px) {
+  .wt-tangent-mobile-open {
+    flex: 3 1 0% !important;
+  }
+}
+
 /* ── Reduced Motion ── */
 @media (prefers-reduced-motion: reduce) {
   .wt-msg-enter { transition: none; }

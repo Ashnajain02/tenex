@@ -161,18 +161,16 @@ export function BranchingHeadline() {
                   <span key={i} className="flex items-center">
                     {i > 0 && (
                       <span
-                        className="hidden sm:inline-block"
+                        className="inline-block w-4 sm:w-9"
                         style={{
-                          width: 36,
                           height: 2.5,
                           borderRadius: 2,
-                          margin: "0 8px",
+                          margin: "0 4px",
                           background: line1Show[i] ? "rgba(217,119,87,0.3)" : "transparent",
                           transition: "background 0.4s ease",
                         }}
                       />
                     )}
-                    {i > 0 && <span className="sm:hidden" style={{ width: 8 }} />}
                     <span
                       className="text-3xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
                       style={{
@@ -223,18 +221,16 @@ export function BranchingHeadline() {
                   <span key={i} className="flex items-center">
                     {i > 0 && (
                       <span
-                        className="hidden sm:inline-block"
+                        className="inline-block w-3 sm:w-7"
                         style={{
-                          width: 28,
                           height: 2.5,
                           borderRadius: 2,
-                          margin: "0 8px",
+                          margin: "0 4px",
                           background: line2Show[i] ? "rgba(217,119,87,0.3)" : "transparent",
                           transition: "background 0.4s ease",
                         }}
                       />
                     )}
-                    {i > 0 && <span className="sm:hidden" style={{ width: 8 }} />}
                     <span
                       className="text-3xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
                       style={{
