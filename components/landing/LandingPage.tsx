@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ScrollWalkthrough } from "./ScrollWalkthrough";
+import { BranchingHeadline } from "./BranchingHeadline";
 
 interface LandingPageProps {
   isLoggedIn: boolean;
@@ -78,218 +79,8 @@ function Nav({ isLoggedIn }: { isLoggedIn: boolean }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 1: Scroll-Driven Branching Headline
-   ═══════════════════════════════════════════════════════════════════
-   600vh tall container. Content is sticky-centered in the viewport.
-   As the user scrolls, words appear one by one along a branching path:
-
-      Your ── thoughts ── branch.
-                  ●
-                  │
-         Your ── AI ── should ── too.
-
-   Then subtitle + scroll hint appear.
+   SECTION 1: Hero — handled by BranchingHeadline component
    ═══════════════════════════════════════════════════════════════════ */
-
-const LINE1 = ["Your", "thoughts", "branch."];
-const LINE2 = ["Your", "AI", "should", "too."];
-const TOTAL_STEPS = LINE1.length + 1 + LINE2.length + 2; // 10
-
-function HeroSection() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setProgress(1);
-      return;
-    }
-    const onScroll = () => {
-      const el = containerRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const scrollable = el.offsetHeight - window.innerHeight;
-      if (scrollable <= 0) return;
-      setProgress(Math.max(0, Math.min(1, -rect.top / scrollable)));
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  const step = progress * TOTAL_STEPS;
-  // First word visible immediately (no scroll needed to see something)
-  const line1Show = LINE1.map((_, i) => i === 0 || step >= i + 1);
-  const forkShow = step >= LINE1.length + 1;
-  const forkGrow = Math.min(1, Math.max(0, (step - LINE1.length) / 1));
-  const line2Show = LINE2.map((_, i) => step >= LINE1.length + 1 + i + 1);
-  const subtitleShow = step >= TOTAL_STEPS - 1;
-  const hintShow = step >= TOTAL_STEPS;
-
-  return (
-    <div ref={containerRef} style={{ height: "600vh" }}>
-      <div
-        className="sticky top-0 flex items-center justify-center"
-        style={{ height: "100vh" }}
-      >
-        <div className="flex flex-col items-center px-6">
-          {/* Line 1 */}
-          <div className="flex items-center justify-center flex-wrap">
-            {LINE1.map((word, i) => (
-              <span key={i} className="flex items-center">
-                {i > 0 && (
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: 36,
-                      height: 2.5,
-                      borderRadius: 2,
-                      margin: "0 8px",
-                      background: line1Show[i]
-                        ? "rgba(217,119,87,0.3)"
-                        : "transparent",
-                      transition: "background 0.4s ease",
-                    }}
-                  />
-                )}
-                <span
-                  className="text-5xl font-bold tracking-tight sm:text-6xl md:text-7xl"
-                  style={{
-                    color: "var(--color-text-primary)",
-                    opacity: line1Show[i] ? 1 : 0,
-                    transform: line1Show[i]
-                      ? "translateY(0)"
-                      : "translateY(16px)",
-                    transition: "opacity 0.5s ease, transform 0.5s ease",
-                    display: "inline-block",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {word}
-                </span>
-              </span>
-            ))}
-          </div>
-
-          {/* Fork node + line */}
-          <div
-            className="flex flex-col items-center"
-            style={{
-              opacity: forkShow ? 1 : 0,
-              transition: "opacity 0.4s ease",
-            }}
-          >
-            <div
-              style={{
-                width: 14,
-                height: 14,
-                borderRadius: "50%",
-                background: "rgba(217,119,87,0.45)",
-                marginTop: 20,
-                boxShadow: "0 0 20px rgba(217,119,87,0.3)",
-              }}
-            />
-            <div
-              style={{
-                width: 2.5,
-                height: 48,
-                borderRadius: 2,
-                background: "rgba(217,119,87,0.3)",
-                transformOrigin: "top",
-                transform: `scaleY(${forkGrow})`,
-              }}
-            />
-          </div>
-
-          {/* Line 2 */}
-          <div
-            className="flex items-center justify-center flex-wrap"
-            style={{ marginTop: 10 }}
-          >
-            {LINE2.map((word, i) => (
-              <span key={i} className="flex items-center">
-                {i > 0 && (
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: 28,
-                      height: 2.5,
-                      borderRadius: 2,
-                      margin: "0 8px",
-                      background: line2Show[i]
-                        ? "rgba(217,119,87,0.3)"
-                        : "transparent",
-                      transition: "background 0.4s ease",
-                    }}
-                  />
-                )}
-                <span
-                  className="text-5xl font-bold tracking-tight sm:text-6xl md:text-7xl"
-                  style={{
-                    color: "var(--color-accent)",
-                    opacity: line2Show[i] ? 1 : 0,
-                    transform: line2Show[i]
-                      ? "translateY(0)"
-                      : "translateY(16px)",
-                    transition: "opacity 0.5s ease, transform 0.5s ease",
-                    display: "inline-block",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {word}
-                </span>
-              </span>
-            ))}
-          </div>
-
-          {/* Subtitle */}
-          <p
-            className="mt-10 max-w-2xl text-lg leading-relaxed md:text-xl text-center"
-            style={{
-              color: "var(--color-text-secondary)",
-              opacity: subtitleShow ? 1 : 0,
-              transform: subtitleShow ? "translateY(0)" : "translateY(10px)",
-              transition: "opacity 0.5s ease, transform 0.5s ease",
-            }}
-          >
-            Explore any tangent without losing context. Branch, merge, and
-            build — all in one conversation.
-          </p>
-
-          {/* Scroll hint */}
-          <div
-            className="mt-8 flex flex-col items-center gap-2"
-            style={{
-              opacity: hintShow ? 1 : 0,
-              transition: "opacity 0.5s ease",
-            }}
-          >
-            <p
-              className="text-xs font-medium"
-              style={{ color: "var(--color-text-muted)" }}
-            >
-              Keep scrolling
-            </p>
-            <svg
-              className="h-5 w-5 scroll-hint"
-              style={{ color: "var(--color-text-muted)" }}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 14l-7 7m0 0l-7-7m7 7V3"
-              />
-            </svg>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ═══════════════════════════════════════════════════════════════════
    SECTION 3: Brief Features
@@ -470,7 +261,7 @@ export function LandingPage({ isLoggedIn }: LandingPageProps) {
   return (
     <div className="landing-page">
       <Nav isLoggedIn={isLoggedIn} />
-      <HeroSection />
+      <BranchingHeadline />
       <ScrollWalkthrough />
       <BriefFeatures />
       <CTA isLoggedIn={isLoggedIn} />

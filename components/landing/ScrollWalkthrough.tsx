@@ -142,8 +142,8 @@ export function ScrollWalkthrough() {
           </div>
         </div>
 
-        {/* App body */}
-        <div className="flex flex-1 min-h-0">
+        {/* App body — stacks vertically on mobile, side-by-side on lg */}
+        <div className="flex flex-col lg:flex-row flex-1 min-h-0">
           {/* Sidebar */}
           <div
             className="hidden sm:flex flex-col w-56 shrink-0 border-r p-3"
@@ -168,8 +168,8 @@ export function ScrollWalkthrough() {
 
           {/* Main chat */}
           <div className="flex flex-col min-w-0 relative" style={{ flex: "1 1 0%" }}>
-            <div className="flex-1 overflow-hidden px-6 py-6">
-              <div className="mx-auto max-w-2xl space-y-5">
+            <div className="flex-1 overflow-hidden px-4 py-4 sm:px-6 sm:py-6">
+              <div className="mx-auto max-w-2xl space-y-4 sm:space-y-5">
                 {/* Empty state */}
                 {!showUser && (
                   <div className="flex flex-col items-center justify-center pt-32 text-center">
@@ -194,7 +194,7 @@ export function ScrollWalkthrough() {
                     }}
                   >
                     <div
-                      className="max-w-[75%] rounded-2xl px-5 py-3.5 text-[0.9375rem]"
+                      className="max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 sm:px-5 sm:py-3.5 text-sm sm:text-[0.9375rem]"
                       style={{
                         background: "var(--color-bg-user-msg)",
                         color: "var(--color-text-primary)",
@@ -217,7 +217,7 @@ export function ScrollWalkthrough() {
                     }}
                   >
                     <Image src="/logo.svg" alt="" width={24} height={24} className="h-6 w-6 mt-1.5 shrink-0 opacity-70" />
-                    <div className="text-[0.9375rem] leading-[1.7]" style={{ color: "var(--color-text-secondary)" }}>
+                    <div className="text-sm sm:text-[0.9375rem] leading-relaxed sm:leading-[1.7]" style={{ color: "var(--color-text-secondary)" }}>
                       <AssistantText words={ASSISTANT_WORDS} count={astCount} highlight={hl} />
                     </div>
                   </div>
@@ -297,17 +297,17 @@ export function ScrollWalkthrough() {
             )}
 
             {/* Input (visual only) */}
-            <div className="shrink-0 border-t px-6 py-4" style={{ borderColor: "var(--color-border)" }}>
+            <div className="shrink-0 border-t px-4 py-3 sm:px-6 sm:py-4" style={{ borderColor: "var(--color-border)" }}>
               <div className="mx-auto max-w-2xl">
                 <div
-                  className="flex items-center gap-3 rounded-2xl border px-4 py-3"
+                  className="flex items-center gap-2 sm:gap-3 rounded-2xl border px-3 py-2.5 sm:px-4 sm:py-3"
                   style={{ borderColor: "var(--color-border)", background: "var(--color-bg-elevated)" }}
                 >
-                  <span className="flex-1 text-[0.9375rem]" style={{ color: "var(--color-text-muted)" }}>
+                  <span className="flex-1 text-sm sm:text-[0.9375rem]" style={{ color: "var(--color-text-muted)" }}>
                     Message Twix...
                   </span>
-                  <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: "var(--color-accent)" }}>
-                    <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl flex items-center justify-center" style={{ background: "var(--color-accent)" }}>
+                    <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14M12 5l7 7-7 7" />
                     </svg>
                   </div>
@@ -316,9 +316,9 @@ export function ScrollWalkthrough() {
             </div>
           </div>
 
-          {/* Tangent panel — flex-1 so it splits 50/50 with main chat */}
+          {/* Tangent panel — side-by-side on lg, stacks below on mobile */}
           <div
-            className="hidden lg:flex flex-col border-l"
+            className="flex flex-col border-t lg:border-t-0 lg:border-l"
             style={{
               borderColor: "var(--color-border)",
               background: "var(--color-bg-base)",
@@ -380,14 +380,14 @@ export function ScrollWalkthrough() {
             </div>
 
             {/* Tangent input — matches main chat input */}
-            <div className="shrink-0 border-t px-6 py-4" style={{ borderColor: "var(--color-border)" }}>
+            <div className="shrink-0 border-t px-4 py-3 sm:px-6 sm:py-4" style={{ borderColor: "var(--color-border)" }}>
               <div
-                className="flex items-center gap-3 rounded-2xl border px-4 py-3"
+                className="flex items-center gap-2 sm:gap-3 rounded-2xl border px-3 py-2.5 sm:px-4 sm:py-3"
                 style={{ borderColor: "var(--color-border)", background: "var(--color-bg-elevated)" }}
               >
-                <span className="flex-1 text-[0.9375rem]" style={{ color: "var(--color-text-muted)" }}>Reply...</span>
-                <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: "var(--color-accent)" }}>
-                  <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <span className="flex-1 text-sm sm:text-[0.9375rem]" style={{ color: "var(--color-text-muted)" }}>Reply...</span>
+                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl flex items-center justify-center" style={{ background: "var(--color-accent)" }}>
+                  <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14M12 5l7 7-7 7" />
                   </svg>
                 </div>
