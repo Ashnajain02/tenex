@@ -33,52 +33,10 @@ Do NOT search for: historical facts, science, math, coding, explanations, opinio
 - Single dollar signs ($) are reserved for currency — never use $...$ for math
 - Use \\bmod for the mod operator, \\cdot for multiplication, \\frac{a}{b} for fractions`;
 
-const SANDBOX_PROMPT = `
-
-## Development Environment
-You have a cloud sandbox (isolated Linux machine) for each conversation. You can:
-- **Run commands**: Use the runCommand tool for git, npm, pip, pytest, make, bash commands, etc.
-- **Read files**: Use the readFile tool to inspect file contents
-- **Write files**: Use the writeFile tool to create or edit files (auto-creates directories)
-- **List directories**: Use the listDir tool to browse the filesystem
-- **Run Python code**: Write \`\`\`python code blocks — the user sees a "Run" button with inline output
-
-When the user asks you to work on a codebase:
-1. Clone the repo with runCommand (e.g. \`git clone <url> /home/user/repo-name\`)
-2. **ALWAYS show the file explorer** immediately after cloning by including this EXACT markdown (replace the path):
-
-\`\`\`filetree
-/home/user/repo-name
-\`\`\`
-
-This opens an interactive file browser drawer. Do NOT redundantly list file names or directory structure in your message text — the user can browse everything in the file explorer. Just confirm what you did (e.g. "Cloned the repo. You can browse the files in the explorer.").
-3. Explore the structure with listDir and readFile
-4. Make changes with writeFile
-5. Install dependencies with runCommand (e.g. \`npm install\`)
-6. Start the dev server with startServer to get a live preview URL
-7. **Check the result**: startServer returns \`{ url, pid, logs, listening }\`. If \`listening\` is false, the server failed — read the \`logs\` field to diagnose the error and fix it before sharing the URL.
-8. **IMPORTANT**: Only include the preview URL as a markdown link if the server is actually listening, e.g. \`[Live Preview](https://...)\` — this renders a live preview panel for the user
-
-- **Start servers**: Use the startServer tool (not runCommand) for dev servers like \`npm run dev\`, \`python -m http.server\`, etc. It runs in the background and returns a public URL.
-- **Diagnose failures**: If startServer returns \`listening: false\`, check the logs. Common issues: missing env vars, missing database, port conflict. Use getServerLogs to re-check logs later. Fix the issue and try again.
-- **Restart after changes**: Kill the old process with killProcess (using the PID from startServer), then call startServer again.
-- **Re-share URL**: Use getPreviewUrl if you need the URL for a port that's already running.
-- **Check logs anytime**: Use getServerLogs with the PID to see the server's stdout/stderr output.
-
-**Sandbox limitations**: The sandbox does NOT have external databases (PostgreSQL, MySQL, MongoDB, Redis). For repos that need a database, either use SQLite, an in-memory alternative, or create mock data. If a repo requires env vars or API keys to start, create a minimal \`.env\` file with placeholder values or mock the dependency.
-
-Key details:
-- Files and variables persist within the same conversation
-- The sandbox has internet access and common dev tools (git, node, python, pip, npm)
-- Common Python libraries: numpy, pandas, matplotlib, scipy, sympy, requests
-- For charts in Python code blocks, use matplotlib — plt.show() displays inline
-- Write clean, well-commented code`;
-
 let cachedDate = "";
-let cachedCorePrompt = "";
-let cachedFullPrompt = "";
+let cachedPrompt = "";
 
-export function getSystemPrompt(hasE2B: boolean = false): string {
+export function getSystemPrompt(): string {
   const date = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
@@ -86,12 +44,10 @@ export function getSystemPrompt(hasE2B: boolean = false): string {
     day: "numeric",
   });
 
-  // Cache the prompt string — only rebuild when the date changes
   if (date !== cachedDate) {
     cachedDate = date;
-    cachedCorePrompt = CORE_PROMPT.replace("{{DATE}}", date);
-    cachedFullPrompt = cachedCorePrompt + SANDBOX_PROMPT;
+    cachedPrompt = CORE_PROMPT.replace("{{DATE}}", date);
   }
 
-  return hasE2B ? cachedFullPrompt : cachedCorePrompt;
+  return cachedPrompt;
 }

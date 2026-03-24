@@ -112,10 +112,6 @@ const features = [
     desc: "Highlight text → branch → explore → merge back",
   },
   {
-    name: "Cloud Sandbox",
-    desc: "Clone repos, run code, preview live — all in chat",
-  },
-  {
     name: "Web Intelligence",
     desc: "Real-time search with inline citations",
   },

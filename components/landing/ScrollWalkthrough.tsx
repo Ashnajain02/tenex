@@ -11,7 +11,7 @@ const ASSISTANT_FULL = `**Twix** is an AI workspace where conversations work lik
 
 Instead of one long thread, you can open **branching conversations** on any topic within your chat. Highlight any text, explore a tangent, then merge your findings back.
 
-It also includes a **cloud sandbox** for running code, and **real-time web search** so every answer stays current and cited.
+It also includes **real-time web search** so every answer stays current and cited.
 
 Think of it as the AI chat you've been wanting — one that actually keeps up with how you think.`;
 

@@ -5,7 +5,7 @@ import { useThreadChat } from "@/hooks/use-thread-chat";
 import { useConversationStore } from "@/store/conversation-store";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
-import { SandboxStatus } from "./SandboxStatus";
+
 import type { MergeEvent } from "@/types";
 
 interface MainThreadProps {
@@ -103,7 +103,6 @@ export function MainThread({
 
   return (
     <div className="flex h-full flex-col">
-      <SandboxStatus conversationId={conversationId} />
       <MessageList
         messages={displayMessages}
         threadId={threadId}

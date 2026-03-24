@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Twix — Think deeper. Build faster. Branch freely.",
   description:
-    "The AI workspace where conversations branch like your thoughts. Explore tangents, write and run code in a cloud sandbox, and search the web in real time.",
+    "The AI workspace where conversations branch like your thoughts. Explore tangents, search the web in real time, and merge insights back.",
 };
 
 export default function RootLayout({

@@ -59,18 +59,6 @@ vi.mock("ai", () => ({
   zodSchema: vi.fn((schema: unknown) => schema),
 }));
 
-// Mock e2b (not relevant for timing but needed for imports)
-vi.mock("@/lib/e2b", () => ({
-  runCommand: vi.fn(),
-  readSandboxFile: vi.fn(),
-  writeSandboxFile: vi.fn(),
-  listSandboxDir: vi.fn(),
-  startServer: vi.fn(),
-  getPreviewUrl: vi.fn(),
-  killProcess: vi.fn(),
-  getServerLogs: vi.fn(),
-}));
-
 // Mock tavily
 vi.mock("@tavily/core", () => ({
   tavily: vi.fn(() => ({ search: vi.fn() })),

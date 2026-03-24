@@ -6,16 +6,7 @@ import { auth } from "@/lib/auth";
 import { buildContextForThread } from "@/lib/context-builder";
 import { prisma } from "@/lib/prisma";
 import { maybeUpdateThreadSummary } from "@/lib/thread-summarizer";
-import {
-  runCommand,
-  readSandboxFile,
-  writeSandboxFile,
-  listSandboxDir,
-  startServer,
-  getPreviewUrl,
-  killProcess,
-  getServerLogs,
-} from "@/lib/e2b";
+import { embedMessage } from "@/lib/embeddings";
 
 export async function POST(req: Request) {
   const requestStart = Date.now();
@@ -44,13 +35,13 @@ export async function POST(req: Request) {
   console.log(`[chat] User message: "${latestContent.slice(0, 100)}${latestContent.length > 100 ? "..." : ""}"`);
 
   // Step 2: Thread verification + context building + message persistence in parallel
-  const [thread, contextMessages] = await Promise.all([
+  // Pass latestContent to context builder for semantic retrieval from ancestors
+  const [thread, contextMessages, userMsg] = await Promise.all([
     prisma.thread.findUnique({
       where: { id: threadId },
       include: { conversation: true },
     }),
-    buildContextForThread(threadId),
-    // Fire-and-forget: persist user message without blocking the stream
+    buildContextForThread(threadId, latestContent),
     prisma.message.create({
       data: { threadId, role: "USER", content: latestContent },
     }),
@@ -61,6 +52,11 @@ export async function POST(req: Request) {
     return new Response("Not found", { status: 404 });
   }
 
+  // Fire-and-forget: embed the user message
+  embedMessage(userMsg.id).catch((err) =>
+    console.error(`[chat] User embedding failed:`, err)
+  );
+
   const preStreamMs = Date.now() - requestStart;
   console.log(`[chat] Pre-stream: ${preStreamMs}ms | context: ${contextMessages.length} messages (depth=${thread.depth})`);
 
@@ -68,15 +64,11 @@ export async function POST(req: Request) {
   const tavilyApiKey = process.env.TAVILY_API_KEY;
   const tavilyClient = tavilyApiKey ? tavily({ apiKey: tavilyApiKey }) : null;
 
-  const conversationId = thread.conversationId;
-  const hasE2B = !!process.env.E2B_API_KEY;
-
   const result = streamText({
     model: chatModel,
-    system: getSystemPrompt(hasE2B),
+    system: getSystemPrompt(),
     messages: [...contextMessages, { role: "user", content: latestContent }],
 
-    // ── Web search tool ──────────────────────────────────────────────
     tools: {
       webSearch: tool({
         description:
@@ -114,274 +106,8 @@ export async function POST(req: Request) {
           }
         },
       }),
-
-      // ── Dev environment tools (require E2B_API_KEY) ────────────────
-      ...(hasE2B
-        ? {
-            runCommand: tool({
-              description:
-                "Run a shell command in the cloud sandbox (e.g. git clone, npm install, pytest, ls, cat). Returns stdout, stderr, and exit code.",
-              inputSchema: zodSchema(
-                z.object({
-                  command: z.string().describe("Shell command to execute"),
-                  workingDirectory: z
-                    .string()
-                    .optional()
-                    .describe("Working directory (default: /home/user)"),
-                })
-              ),
-              execute: async ({
-                command,
-                workingDirectory,
-              }: {
-                command: string;
-                workingDirectory?: string;
-              }) => {
-                console.log(`[tool:runCommand] ${command}${workingDirectory ? ` (cwd: ${workingDirectory})` : ""}`);
-                try {
-                  const cmdStart = Date.now();
-                  const result = await runCommand(
-                    conversationId,
-                    command,
-                    workingDirectory
-                  );
-                  console.log(`[tool:runCommand] exit=${result.exitCode} in ${Date.now() - cmdStart}ms`);
-                  return result;
-                } catch (err: unknown) {
-                  console.error(`[tool:runCommand] Error:`, err);
-                  return {
-                    stdout: "",
-                    stderr:
-                      err instanceof Error ? err.message : "Command failed",
-                    exitCode: 1,
-                  };
-                }
-              },
-            }),
-
-            readFile: tool({
-              description:
-                "Read a file's contents from the cloud sandbox filesystem.",
-              inputSchema: zodSchema(
-                z.object({
-                  path: z
-                    .string()
-                    .describe("Absolute path to the file in the sandbox"),
-                })
-              ),
-              execute: async ({ path }: { path: string }) => {
-                console.log(`[tool:readFile] ${path}`);
-                try {
-                  const content = await readSandboxFile(conversationId, path);
-                  console.log(`[tool:readFile] ${content.length} chars`);
-                  return { content };
-                } catch (err: unknown) {
-                  console.error(`[tool:readFile] Error reading ${path}:`, err);
-                  return {
-                    error:
-                      err instanceof Error ? err.message : "Failed to read file",
-                  };
-                }
-              },
-            }),
-
-            writeFile: tool({
-              description:
-                "Write content to a file in the cloud sandbox. Creates the file and any needed directories if they don't exist.",
-              inputSchema: zodSchema(
-                z.object({
-                  path: z
-                    .string()
-                    .describe("Absolute path to the file in the sandbox"),
-                  content: z.string().describe("File content to write"),
-                })
-              ),
-              execute: async ({
-                path,
-                content,
-              }: {
-                path: string;
-                content: string;
-              }) => {
-                console.log(`[tool:writeFile] ${path} (${content.length} chars)`);
-                try {
-                  await writeSandboxFile(conversationId, path, content);
-                  return { success: true, path };
-                } catch (err: unknown) {
-                  console.error(`[tool:writeFile] Error writing ${path}:`, err);
-                  return {
-                    error:
-                      err instanceof Error
-                        ? err.message
-                        : "Failed to write file",
-                  };
-                }
-              },
-            }),
-
-            listDir: tool({
-              description:
-                "List files and directories at the given path in the cloud sandbox.",
-              inputSchema: zodSchema(
-                z.object({
-                  path: z
-                    .string()
-                    .describe(
-                      "Directory path to list (default: /home/user)"
-                    ),
-                })
-              ),
-              execute: async ({ path }: { path: string }) => {
-                console.log(`[tool:listDir] ${path || "/home/user"}`);
-                try {
-                  const entries = await listSandboxDir(
-                    conversationId,
-                    path || "/home/user"
-                  );
-                  console.log(`[tool:listDir] ${entries.length} entries`);
-                  return { entries };
-                } catch (err: unknown) {
-                  console.error(`[tool:listDir] Error:`, err);
-                  return {
-                    error:
-                      err instanceof Error
-                        ? err.message
-                        : "Failed to list directory",
-                  };
-                }
-              },
-            }),
-
-            startServer: tool({
-              description:
-                "Start a dev server in the background and get a live preview URL. Returns { url, pid, logs, listening }. Check the 'listening' field — if false, the server failed to start; read 'logs' to diagnose and fix the issue. If a server is already running on the same port, kill it first with killProcess. IMPORTANT: Only include the URL as a markdown link if listening=true.",
-              inputSchema: zodSchema(
-                z.object({
-                  command: z
-                    .string()
-                    .describe(
-                      "Server startup command (e.g. npm run dev, python -m http.server 8080)"
-                    ),
-                  port: z
-                    .number()
-                    .optional()
-                    .describe("Port the server listens on (default: 3000)"),
-                  workingDirectory: z
-                    .string()
-                    .optional()
-                    .describe("Working directory (default: /home/user)"),
-                })
-              ),
-              execute: async ({
-                command,
-                port,
-                workingDirectory,
-              }: {
-                command: string;
-                port?: number;
-                workingDirectory?: string;
-              }) => {
-                const p = port ?? 3000;
-                console.log(`[tool:startServer] "${command}" on port ${p}${workingDirectory ? ` (cwd: ${workingDirectory})` : ""}`);
-                try {
-                  const result = await startServer(
-                    conversationId,
-                    command,
-                    p,
-                    workingDirectory
-                  );
-                  console.log(`[tool:startServer] pid=${result.pid} listening=${result.listening} url=${result.url}`);
-                  return result;
-                } catch (err: unknown) {
-                  console.error(`[tool:startServer] Error:`, err);
-                  return {
-                    error:
-                      err instanceof Error
-                        ? err.message
-                        : "Failed to start server",
-                  };
-                }
-              },
-            }),
-
-            getPreviewUrl: tool({
-              description:
-                "Get the public URL for a port already running in the sandbox. Use when you need to re-share the preview URL without starting a new server.",
-              inputSchema: zodSchema(
-                z.object({
-                  port: z
-                    .number()
-                    .describe("Port number of the running server"),
-                })
-              ),
-              execute: async ({ port }: { port: number }) => {
-                try {
-                  const url = await getPreviewUrl(conversationId, port);
-                  return { url };
-                } catch (err: unknown) {
-                  return {
-                    error:
-                      err instanceof Error
-                        ? err.message
-                        : "Failed to get preview URL",
-                  };
-                }
-              },
-            }),
-
-            getServerLogs: tool({
-              description:
-                "Read the captured stdout/stderr logs for a background server process. Use this to diagnose why a server failed to start or is misbehaving. Returns { logs, running }.",
-              inputSchema: zodSchema(
-                z.object({
-                  pid: z
-                    .number()
-                    .describe("Process ID returned by startServer"),
-                })
-              ),
-              execute: async ({ pid }: { pid: number }) => {
-                try {
-                  return await getServerLogs(conversationId, pid);
-                } catch (err: unknown) {
-                  return {
-                    error:
-                      err instanceof Error
-                        ? err.message
-                        : "Failed to get server logs",
-                  };
-                }
-              },
-            }),
-
-            killProcess: tool({
-              description:
-                "Kill a running background process by PID. Use before restarting a server on the same port.",
-              inputSchema: zodSchema(
-                z.object({
-                  pid: z
-                    .number()
-                    .describe("Process ID returned by startServer"),
-                })
-              ),
-              execute: async ({ pid }: { pid: number }) => {
-                try {
-                  const killed = await killProcess(conversationId, pid);
-                  return { success: killed };
-                } catch (err: unknown) {
-                  return {
-                    error:
-                      err instanceof Error
-                        ? err.message
-                        : "Failed to kill process",
-                  };
-                }
-              },
-            }),
-          }
-        : {}),
     },
 
-    // Limit tool steps: 5 for sandbox workflows, keeps responses snappy
     stopWhen: stepCountIs(5),
 
     async onFinish({ text, usage, steps }) {
@@ -405,14 +131,19 @@ export async function POST(req: Request) {
         writes.push(
           prisma.message.create({
             data: { threadId, role: "ASSISTANT", content: text },
+          }).then((assistantMsg) => {
+            // Fire-and-forget: embed the assistant message
+            embedMessage(assistantMsg.id).catch((err) =>
+              console.error(`[chat] Assistant embedding failed:`, err)
+            );
           })
         );
       }
       await Promise.all(writes);
 
-      // Eager summarization: fire-and-forget
+      // Fire-and-forget: eager summarization + knowledge distillation
       maybeUpdateThreadSummary(threadId).catch((err) =>
-        console.error(`[chat] Summary generation failed:`, err)
+        console.error(`[chat] Summary/knowledge generation failed:`, err)
       );
 
       // Auto-title: fire-and-forget (don't block the response)

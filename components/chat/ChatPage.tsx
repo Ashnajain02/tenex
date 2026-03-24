@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MainThread } from "./MainThread";
 import { TangentPanel } from "./TangentPanel";
-import { SandboxDrawer } from "./SandboxDrawer";
+
 import { useTangentStore } from "@/store/tangent-store";
-import { useUIStore } from "@/store/ui-store";
+
 import { useConversationStore } from "@/store/conversation-store";
 import { reconstructTangentState } from "@/lib/tangent-utils";
 import type { MergeEvent, TangentWindowState } from "@/types";
@@ -33,11 +33,6 @@ export function ChatPage({
   const openTangents = useTangentStore((s) => s.openTangents);
   const activeChildByParent = useTangentStore((s) => s.activeChildByParent);
   const viewParentId = useTangentStore((s) => s.viewParentId);
-  const drawerOpen = useUIStore((s) => s.drawerOpen);
-  const drawerWidth = useUIStore((s) => s.drawerWidth);
-  const setDrawerWidth = useUIStore((s) => s.setDrawerWidth);
-  const fileBrowserPath = useUIStore((s) => s.fileBrowserPath);
-  const previewUrl = useUIStore((s) => s.previewUrl);
   const storeConversationId = useTangentStore((s) => s.conversationId);
   const hydrate = useTangentStore((s) => s.hydrate);
   const openTangentAction = useTangentStore((s) => s.openTangent);
@@ -46,14 +41,6 @@ export function ChatPage({
   const setActiveChild = useTangentStore((s) => s.setActiveChild);
 
   const { addConversation } = useConversationStore();
-
-  // Clear drawer state when switching conversations
-  useEffect(() => {
-    const store = useUIStore.getState();
-    store.setPreviewUrl(null);
-    store.setFileBrowserPath(null);
-    store.setDrawerOpen(false);
-  }, [conversationId]);
 
   // Hydrate tangent store from server data on mount or conversation switch.
   // First hydrate from server-provided props (fast SSR path), then fetch
@@ -480,64 +467,6 @@ export function ChatPage({
             );
           })}
 
-        {/* Sandbox drawer (files + preview) with resize handle */}
-        {drawerOpen && (fileBrowserPath || previewUrl) && (
-          <div
-            style={{
-              flex: `0 0 ${drawerWidth}px`,
-              display: "flex",
-              height: "100%",
-              position: "relative",
-            }}
-          >
-            {/* Drag handle */}
-            <div
-              onMouseDown={(e) => {
-                e.preventDefault();
-                const startX = e.clientX;
-                const startWidth = drawerWidth;
-                const onMouseMove = (ev: MouseEvent) => {
-                  const delta = startX - ev.clientX;
-                  setDrawerWidth(startWidth + delta);
-                };
-                const onMouseUp = () => {
-                  document.removeEventListener("mousemove", onMouseMove);
-                  document.removeEventListener("mouseup", onMouseUp);
-                  document.body.style.cursor = "";
-                  document.body.style.userSelect = "";
-                };
-                document.addEventListener("mousemove", onMouseMove);
-                document.addEventListener("mouseup", onMouseUp);
-                document.body.style.cursor = "col-resize";
-                document.body.style.userSelect = "none";
-              }}
-              style={{
-                width: 3,
-                cursor: "col-resize",
-                flexShrink: 0,
-                background: "var(--color-border-subtle)",
-                transition: "background 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "var(--color-border)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "var(--color-border-subtle)";
-              }}
-            />
-            <div
-              style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                height: "100%",
-                minWidth: 0,
-              }}
-            >
-              <SandboxDrawer conversationId={conversationId} />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

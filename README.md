@@ -12,8 +12,6 @@ Think of it like browser tabs, but for thoughts.
 
 **Merge back** — When you're done exploring a tangent, merge it back into the parent thread. The AI generates a short summary of what was discussed, so you (and the AI) can reference it later.
 
-**Live code execution** — The AI has access to a cloud Linux sandbox (powered by E2B). It can clone repos, install dependencies, write files, run commands, start dev servers, and give you a live preview URL — all from the chat.
-
 **Web search** — When you ask about current events or recent topics, the AI automatically searches the web first and cites its sources inline.
 
 ## How it works under the hood
@@ -27,94 +25,163 @@ The database stores conversations as a **tree of threads**. Each conversation ha
 
 This creates a tree structure: Main → Tangent A → Sub-tangent A1, etc.
 
-### Context building & hierarchical compression
+### Context building — hierarchical compression + semantic RAG
 
-When the AI responds in any thread, it needs to "see" the conversation history above it — not just the current branch, but its ancestors too. Naively sending every ancestor message verbatim would cause token usage to explode as users branch deeper.
+When the AI responds in any thread, it needs to "see" the conversation history above it. Naively sending every ancestor message verbatim would cause token usage to explode as users branch deeper.
 
-The **context builder** (`lib/context-builder.ts`) solves this with **hierarchical compression** — the further away an ancestor thread is, the more aggressively it gets compressed:
+Twix solves this with three layered strategies:
+
+#### 1. Hierarchical compression
+
+The **context builder** (`lib/context-builder.ts`) compresses ancestor context based on distance — the further away an ancestor thread is, the more aggressively it gets compressed:
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    WHAT THE AI RECEIVES                         │
-│                                                                 │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │  Grandparent thread (depth 0)          ░░ SUMMARY ONLY   │  │
-│  │  ┌─────────────────────────────────────────────────────┐  │  │
-│  │  │ "The user discussed X, Y, Z. Key conclusions: ..." │  │  │
-│  │  └─────────────────────────────────────────────────────┘  │  │
-│  │  ~ 50-100 tokens (was 2000+)                              │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                          │                                      │
-│                    ▼ branched on                                 │
-│                  "highlighted text"                              │
-│                          │                                      │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │  Parent thread (depth 1)          ░░ SUMMARY + RECENT    │  │
-│  │  ┌─────────────────────────────────────────────────────┐  │  │
-│  │  │ Summary of older messages (paragraph)               │  │  │
-│  │  ├─────────────────────────────────────────────────────┤  │  │
-│  │  │ Last 10 messages in FULL (up to branch point)       │  │  │
-│  │  └─────────────────────────────────────────────────────┘  │  │
-│  │  ~ 500-1500 tokens (was 5000+)                            │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                          │                                      │
-│                    ▼ branched on                                 │
-│                  "highlighted text"                              │
-│                          │                                      │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │  Current thread (depth 2)               ░░ FULL DETAIL   │  │
-│  │  ┌─────────────────────────────────────────────────────┐  │  │
-│  │  │ ALL messages in full                                │  │  │
-│  │  │ + merged tangent summaries injected at merge points │  │  │
-│  │  └─────────────────────────────────────────────────────┘  │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                      WHAT THE AI RECEIVES                            │
+│                                                                      │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │  Grandparent+ (depth 0, 1, ...)        ░░ KNOWLEDGE ONLY     │  │
+│  │  ┌──────────────────────────────────────────────────────────┐  │  │
+│  │  │ [Thread Knowledge — ancestor thread (depth 0):           │  │  │
+│  │  │   Topics: RSA encryption, key management                 │  │  │
+│  │  │   Facts: RSA uses two primes p,q | n = p×q               │  │  │
+│  │  │   Decisions: Use 2048-bit keys | Python implementation   │  │  │
+│  │  │   User Preferences: Wants code examples ]                │  │  │
+│  │  └──────────────────────────────────────────────────────────┘  │  │
+│  │  ~ 50-150 tokens per ancestor (was 2000+)                     │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+│                          │                                           │
+│                    ▼ branched on "highlighted text"                   │
+│                          │                                           │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │  Immediate parent (depth N-1)     ░░ KNOWLEDGE + RECENT MSGS │  │
+│  │  ┌──────────────────────────────────────────────────────────┐  │  │
+│  │  │ Structured knowledge of older messages                   │  │  │
+│  │  ├──────────────────────────────────────────────────────────┤  │  │
+│  │  │ Last 10 messages VERBATIM (up to branch point)           │  │  │
+│  │  └──────────────────────────────────────────────────────────┘  │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+│                          │                                           │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │  ★ Semantic retrieval block          ░░ CHERRY-PICKED MSGS   │  │
+│  │  ┌──────────────────────────────────────────────────────────┐  │  │
+│  │  │ Top 6 most relevant messages from ANY ancestor thread,   │  │  │
+│  │  │ retrieved via pgvector cosine similarity (HNSW index)    │  │  │
+│  │  └──────────────────────────────────────────────────────────┘  │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+│                          │                                           │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │  Current thread (depth N)               ░░ FULL DETAIL        │  │
+│  │  ┌──────────────────────────────────────────────────────────┐  │  │
+│  │  │ ALL messages in full                                     │  │  │
+│  │  │ + merged tangent knowledge injected at merge points      │  │  │
+│  │  └──────────────────────────────────────────────────────────┘  │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-| Ancestor distance | What's sent to the LLM | Typical tokens |
-|---|---|---|
-| **Current thread** | All messages + merged tangent summaries | Full |
-| **Immediate parent** | Paragraph summary of older messages + last 10 messages verbatim | ~500–1500 |
-| **Grandparent and above** | Paragraph summary only + tangent transition markers | ~50–100 each |
+#### 2. Conversation-tree RAG (pgvector)
 
-**Eager summarization** — Summaries aren't generated on-the-fly. After every assistant response, a background job checks whether the thread has accumulated 20+ new messages since its last summary. If so, it generates a paragraph summary (via GPT-4.1-nano) and stores it in the database. This means the context builder just reads a pre-computed summary — no extra LLM call at request time.
+Most RAG systems search flat document stores. Twix does **topology-aware semantic retrieval** over the conversation tree:
+
+- Every message is embedded at write time using `text-embedding-3-small` (1536 dimensions)
+- Embeddings are stored as pgvector columns with an HNSW index for fast cosine similarity
+- When building context, the user's current message is embedded and compared against **all ancestor thread messages**
+- The top-K most semantically relevant messages are cherry-picked and injected, regardless of how far back they occurred
+
+This means a tangent about "RSA key rotation" branched from a 50-message CS lecture will pull in the cryptography messages from 40 messages ago — not the unrelated sorting algorithm discussion from 5 messages ago.
+
+```
+  User message: "How do we handle key rotation?"
+         │
+         ▼  embed query → [0.12, -0.34, ...]
+         │
+         ▼  cosine similarity search (HNSW index)
+         │  scoped to ancestor thread IDs only
+         │
+    ┌────┴──────────────────────────────────────┐
+    │  Ancestor threads (recursive CTE)          │
+    │                                            │
+    │  Main thread (50 msgs)                     │
+    │    msg #7:  "RSA uses two large primes"    │  sim: 0.89 ★
+    │    msg #12: "Key generation process..."    │  sim: 0.85 ★
+    │    msg #31: "Bubble sort comparison..."    │  sim: 0.23 ✗
+    │                                            │
+    │  Tangent A (15 msgs)                       │
+    │    msg #3:  "Public key distribution..."   │  sim: 0.82 ★
+    │    msg #8:  "Certificate authorities..."   │  sim: 0.79 ★
+    │                                            │
+    └────────────────────────────────────────────┘
+         │
+         ▼  inject top 6 (above 0.6 threshold)
+         │  deduplicated against already-included messages
+         │
+    [Semantically retrieved ancestor messages]
+```
+
+#### 3. Structured knowledge distillation
+
+Instead of compressing conversations into lossy paragraph summaries, Twix distills them into **structured, queryable knowledge**:
+
+```json
+{
+  "topics": ["RSA encryption", "key management"],
+  "facts": ["RSA uses two large primes p and q", "Public key is (n, e) where n = p×q"],
+  "decisions": ["Will use 2048-bit keys", "Python implementation with PyCryptodome"],
+  "openQuestions": ["How to handle key rotation?"],
+  "preferences": ["Wants code examples with every explanation"],
+  "entities": { "RSA": "asymmetric encryption algorithm", "PyCryptodome": "Python crypto library" }
+}
+```
+
+Why structured knowledge beats paragraph summaries:
+- The LLM can **scan structured context faster** and more accurately
+- Cross-branch knowledge can be **merged cleanly** (union facts, resolve conflicts)
+- **Contradictions** across branches become detectable
+- Individual fields can be **selectively injected** based on relevance
+
+Knowledge is generated eagerly (fire-and-forget after every assistant response) and stored as JSONB on the thread row.
+
+#### Full request flow
 
 ```
   User sends message
          │
-         ▼
-  ┌─────────────┐     ┌──────────────────┐
-  │  Chat API   │────▶│  Context Builder  │──── reads thread.summary from DB
-  │  route.ts   │     │  (hierarchical)   │──── fetches recent messages
-  └──────┬──────┘     └──────────────────┘
+    ┌────┴─────────────────────────────────────────────────────────┐
+    │  IN PARALLEL:                                                │
+    │  ┌─────────────┐  ┌──────────────────┐  ┌────────────────┐  │
+    │  │ Verify       │  │ Build context    │  │ Persist user   │  │
+    │  │ thread +     │  │ (hierarchical    │  │ message to DB  │  │
+    │  │ auth         │  │  compression +   │  │                │  │
+    │  │              │  │  semantic RAG)   │  │                │  │
+    │  └─────────────┘  └──────────────────┘  └───────┬────────┘  │
+    └──────────────────────────────────────────────────┼───────────┘
+                                                       │
+                                              fire-and-forget:
+                                              embed user message
+                                              (text-embedding-3-small)
          │
          ▼
-  Stream AI response
+  Stream AI response to client
          │
          ▼
-  Persist assistant message
-         │
-         ▼
-  ┌──────────────────────┐
-  │  Thread Summarizer   │  (fire-and-forget)
-  │  ┌────────────────┐  │
-  │  │ 20+ new msgs?  │──│── no → skip
-  │  │ since summary  │  │
-  │  └───────┬────────┘  │
-  │          yes          │
-  │          ▼            │
-  │  Generate paragraph   │
-  │  summary via LLM      │
-  │          │            │
-  │          ▼            │
-  │  Store in thread.     │
-  │  summary + update     │
-  │  summaryMessageCount  │
-  └──────────────────────┘
+  ┌──────────────────────────────────────────────┐
+  │  ON FINISH (fire-and-forget, non-blocking):  │
+  │                                              │
+  │  1. Persist assistant message                │
+  │  2. Embed assistant message (pgvector)       │
+  │  3. Maybe update thread knowledge:           │
+  │     ┌────────────────────────────────────┐   │
+  │     │ 20+ new msgs since last update?    │   │
+  │     │  yes → distill structured knowledge│   │
+  │     │        + generate plain summary    │   │
+  │     │        → store both on thread row  │   │
+  │     │  no  → skip                        │   │
+  │     └────────────────────────────────────┘   │
+  │  4. Maybe auto-title conversation            │
+  └──────────────────────────────────────────────┘
 ```
-
-This means a tangent five levels deep sends ~200 tokens of ancestor summaries instead of thousands of verbatim messages — while still giving the AI full context for the active conversation.
 
 ### State management
 
@@ -132,19 +199,7 @@ Chat uses the **Vercel AI SDK v6** with `streamText()`. The AI response streams 
 
 | Tool | What it does |
 |------|-------------|
-| `webSearch` | Searches the web via Tavily API |
-| `runCommand` | Runs shell commands in the sandbox |
-| `readFile` / `writeFile` | Read/write files in the sandbox |
-| `listDir` | Browse the sandbox filesystem |
-| `startServer` | Start a dev server, get a live preview URL |
-| `getServerLogs` | Check server stdout/stderr for debugging |
-| `killProcess` | Kill a background process before restarting |
-
-The AI can chain up to 10 tool calls per response, so it can clone a repo → install deps → edit a file → start a server in one turn.
-
-### Live preview
-
-When the AI starts a dev server, it returns a public URL via E2B's `getHost()`. The markdown renderer detects E2B URLs in the response and automatically renders them as an embedded iframe preview — so you see the running app inline in the chat.
+| `webSearch` | Searches the web via Tavily API, returns top results with snippets |
 
 ## Tech stack
 
@@ -152,16 +207,17 @@ When the AI starts a dev server, it returns a public URL via E2B's `getHost()`. 
 |-------|-----------|------------|
 | Framework | **Next.js 16** (App Router) | Full-stack React framework — handles both the UI and the API |
 | Language | **TypeScript** | JavaScript with type checking |
-| Database | **PostgreSQL** + **Prisma v7** | Relational database + an ORM (a library that lets you query the database with TypeScript instead of raw SQL) |
+| Database | **PostgreSQL** + **Prisma v7** | Relational database + ORM with typed queries |
+| Vector search | **pgvector** (HNSW index) | Semantic similarity search over message embeddings |
+| Embeddings | **OpenAI text-embedding-3-small** | 1536-dimension embeddings for conversation-tree RAG |
 | Auth | **NextAuth v5** | Handles login, sessions, and protecting routes |
-| AI | **OpenAI GPT-4o** via **Vercel AI SDK v6** | LLM for chat responses; the SDK handles streaming, tool calling, and the React hooks |
-| State | **Zustand** | Lightweight client-side state management (like Redux but simpler) |
+| AI | **OpenAI GPT-4.1-nano** via **Vercel AI SDK v6** | LLM for chat, knowledge distillation, and summaries |
+| State | **Zustand** | Lightweight client-side state management |
 | Styling | **Tailwind CSS v4** | Utility-first CSS framework |
 | Code editor | **CodeMirror** (via `@uiw/react-codemirror`) | In-browser code editor with syntax highlighting |
 | Math rendering | **KaTeX** | Renders LaTeX math equations in responses |
-| Markdown | **react-markdown** + remark/rehype plugins | Renders AI responses as formatted HTML (with tables, code blocks, etc.) |
+| Markdown | **react-markdown** + remark/rehype plugins | Renders AI responses as formatted HTML |
 | Web search | **Tavily** | API for real-time web search results |
-| Code sandbox | **E2B** | Cloud Linux VMs for running code, servers, and commands |
 | Testing | **Vitest** + **Testing Library** | Unit testing framework |
 
 ## Live Demo
@@ -173,7 +229,7 @@ Deployed on **Vercel** with **Neon** (serverless PostgreSQL): [twix-chat.vercel.
 ### Prerequisites
 
 - **Node.js** 18+
-- **PostgreSQL** running locally (or a remote connection string)
+- **PostgreSQL** running locally (or a remote connection string) — must support the `pgvector` extension
 - An **OpenAI API key**
 
 ### 1. Clone and install
@@ -197,9 +253,6 @@ OPENAI_API_KEY="sk-..."
 
 # Optional — enables web search
 TAVILY_API_KEY=""
-
-# Optional — enables cloud code execution
-E2B_API_KEY=""
 ```
 
 Generate `AUTH_SECRET` by running:
@@ -251,16 +304,18 @@ tenex/
 │       ├── conversations/      # CRUD for conversations
 │       └── threads/            # Thread operations (branch, merge, messages)
 ├── components/
-│   ├── chat/                   # Chat UI (messages, input, code blocks, preview)
+│   ├── chat/                   # Chat UI (messages, input, code blocks)
 │   ├── auth/                   # Login/register forms
 │   ├── landing/                # Landing page
 │   └── layout/                 # Sidebar, navigation
 ├── hooks/                      # React hooks (useChat wrapper, text selection, etc.)
 ├── lib/
-│   ├── context-builder.ts      # Recursive context assembly (core algorithm)
+│   ├── context-builder.ts      # Hierarchical compression + semantic RAG (core algorithm)
+│   ├── embeddings.ts           # pgvector embedding generation + similarity search
+│   ├── knowledge.ts            # Structured knowledge distillation (generateText + Zod schema)
+│   ├── thread-summarizer.ts    # Eager summarization + knowledge distillation orchestrator
 │   ├── merge.ts                # AI summary generation for merges
 │   ├── ai.ts                   # Model config & system prompt
-│   ├── e2b.ts                  # Cloud sandbox management
 │   └── prisma.ts               # Database client
 ├── store/                      # Zustand stores (tangent, chat, conversation, ui)
 ├── prisma/
@@ -273,12 +328,16 @@ tenex/
 
 ```
 User ──< Conversation ──< Thread ──< Message
+                              │           │
+                              │           └── embedding vector(1536)  ← pgvector
                               │
                               ├── parentThreadId  (points to parent thread)
                               ├── parentMessageId (the message that was highlighted)
                               ├── highlightedText (what the user selected)
                               ├── depth           (0 = main, 1+ = tangent)
-                              └── status          (ACTIVE / MERGED / ARCHIVED)
+                              ├── status          (ACTIVE / MERGED / ARCHIVED)
+                              ├── summary         (plain text paragraph)
+                              └── knowledge       (JSONB — structured distillation)
 
 MergeEvent
   ├── sourceThreadId  (the tangent being merged)

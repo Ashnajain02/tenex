@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { closeSandbox } from "@/lib/e2b";
+
 
 // GET: Get conversation with its thread tree
 export async function GET(
@@ -106,9 +106,6 @@ export async function DELETE(
     // 3. Delete conversation — now cascades cleanly to threads → messages
     await tx.conversation.delete({ where: { id: conversationId } });
   });
-
-  // Kill any active sandbox for this conversation
-  await closeSandbox(conversationId).catch(() => {});
 
   return new Response(null, { status: 204 });
 }
