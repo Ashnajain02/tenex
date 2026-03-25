@@ -1,8 +1,5 @@
 import { prisma } from "./prisma";
-import {
-  findRelevantAncestorMessages,
-  getAncestorThreadIds,
-} from "./embeddings";
+import { findRelevantAncestorMessages } from "./embeddings";
 import {
   formatKnowledgeForContext,
   type ThreadKnowledge,
@@ -11,21 +8,12 @@ import {
 /**
  * Context builder with hierarchical compression and semantic retrieval.
  *
- * Architecture:
- *   ┌─────────────────────────────────────────────────────────────┐
- *   │ Grandparent+ threads  →  Structured knowledge only         │
- *   │ Immediate parent      →  Knowledge + last N messages       │
- *   │ Current thread        →  ALL messages + merged tangents    │
- *   │ Semantic retrieval    →  Top-K relevant msgs from ancestors│
- *   └─────────────────────────────────────────────────────────────┘
- *
- * The semantic retrieval layer (pgvector cosine similarity) supplements
- * the hierarchical compression by cherry-picking the most relevant
- * ancestor messages — regardless of how far back they are — and
- * injecting them into the context. This means a tangent about
- * "RSA encryption" branched from a long CS lecture will pull in the
- * cryptography messages from 40 messages ago, not the unrelated
- * sorting algorithm discussion from 5 messages ago.
+ * Performance-critical: everything here runs before the first token streams.
+ * Key optimizations:
+ *   - Embedding API call starts immediately and runs in parallel with DB work
+ *   - All ancestor threads fetched in a single batch query (no recursive waterfall)
+ *   - Ancestor IDs collected during traversal (no duplicate CTE)
+ *   - Main thread (depth 0) skips all ancestor/embedding work entirely
  */
 
 interface ContextMessage {
@@ -43,55 +31,285 @@ const SEMANTIC_RETRIEVAL_LIMIT = 6;
 // Public API
 // ---------------------------------------------------------------------------
 
-/**
- * Builds the full context message array for a given thread.
- *
- * @param threadId     - The thread to build context for
- * @param currentQuery - The latest user message (used as the semantic retrieval query).
- *                       When omitted, semantic retrieval is skipped.
- */
 export async function buildContextForThread(
   threadId: string,
   currentQuery?: string
 ): Promise<ContextMessage[]> {
+  // Fetch current thread with messages and merges
   const thread = await prisma.thread.findUniqueOrThrow({
     where: { id: threadId },
     include: {
-      messages: {
-        orderBy: { createdAt: "asc" },
-      },
+      messages: { orderBy: { createdAt: "asc" } },
       mergesAsTarget: {
-        include: {
-          sourceThread: true,
-        },
+        include: { sourceThread: true },
         orderBy: { createdAt: "asc" },
       },
     },
   });
 
-  const context: ContextMessage[] = [];
+  // ── Fast path: main thread (depth 0) — no ancestors, no embedding needed ──
+  if (!thread.parentThreadId || !thread.parentMessageId) {
+    return buildCurrentThreadContext(thread);
+  }
 
-  // Track message IDs already included verbatim — used to deduplicate
-  // against semantic retrieval results
-  const includedMessageIds = new Set<string>();
+  // ── Tangent path: need ancestor context + optional semantic retrieval ──
 
-  // ── Step 1: Ancestor context (compressed) ──────────────────────────
+  // Start embedding the query NOW, in parallel with all DB work.
+  // This is the single most expensive call (~300-500ms to OpenAI).
+  // We don't await it until we actually need the results.
+  const embeddingPromise = currentQuery
+    ? startEmbeddingEarly(currentQuery)
+    : null;
 
-  if (thread.parentThreadId && thread.parentMessageId) {
-    const ancestorMessages = await buildAncestorContext(
-      thread.parentThreadId,
+  // Batch-fetch all ancestor threads in ONE query instead of N sequential ones.
+  // Returns them ordered from root → immediate parent.
+  const ancestors = await fetchAncestorChain(thread.parentThreadId);
+
+  // Build compressed ancestor context from the batch result
+  const { context: ancestorContext, includedMessageIds } =
+    await buildAncestorContextFromChain(
+      ancestors,
       thread.parentMessageId,
       thread.highlightedText
     );
 
-    for (const msg of ancestorMessages) {
-      context.push(msg.contextMessage);
-      if (msg.messageId) includedMessageIds.add(msg.messageId);
+  // Build current thread context
+  const currentContext = buildCurrentThreadContext(thread);
+
+  // ── Semantic retrieval (runs in parallel with nothing — embedding started early) ──
+  let retrievalBlock: ContextMessage[] = [];
+
+  if (embeddingPromise && ancestors.length > 0) {
+    const ancestorIds = ancestors.map((a) => a.id);
+    const embedding = await embeddingPromise;
+
+    if (embedding) {
+      const relevantMessages = await findRelevantAncestorMessages(
+        embedding,
+        ancestorIds,
+        SEMANTIC_RETRIEVAL_LIMIT,
+        Array.from(includedMessageIds)
+      );
+
+      if (relevantMessages.length > 0) {
+        retrievalBlock = buildRetrievalBlock(relevantMessages);
+      }
     }
   }
 
-  // ── Step 2: Current thread messages + merged tangent injection ─────
+  // Assemble: ancestors → retrieval → current thread
+  return [...ancestorContext, ...retrievalBlock, ...currentContext];
+}
 
+// ---------------------------------------------------------------------------
+// Early embedding (parallel with DB work)
+// ---------------------------------------------------------------------------
+
+import { embed } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+const embeddingModel = openai.embedding("text-embedding-3-small");
+
+/**
+ * Starts the embedding API call immediately and returns a promise.
+ * Returns the raw embedding vector, or null on failure.
+ * This runs in parallel with all the DB queries.
+ */
+async function startEmbeddingEarly(
+  query: string
+): Promise<number[] | null> {
+  try {
+    const { embedding } = await embed({
+      model: embeddingModel,
+      value: query.slice(0, 8000),
+    });
+    return embedding;
+  } catch (err) {
+    console.error("[context-builder] Embedding failed, skipping retrieval:", err);
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Batch ancestor fetching (replaces recursive waterfall)
+// ---------------------------------------------------------------------------
+
+interface AncestorThread {
+  id: string;
+  parentThreadId: string | null;
+  parentMessageId: string | null;
+  highlightedText: string | null;
+  summary: string | null;
+  knowledge: unknown;
+  depth: number;
+}
+
+/**
+ * Fetches the entire ancestor chain in a SINGLE query.
+ * Returns threads ordered root-first (depth 0 → immediate parent).
+ *
+ * Replaces the old recursive buildGrandparentContext which did
+ * one DB round-trip per ancestor level.
+ */
+async function fetchAncestorChain(
+  startThreadId: string
+): Promise<AncestorThread[]> {
+  const ancestors = await prisma.$queryRaw<AncestorThread[]>`
+    WITH RECURSIVE chain AS (
+      SELECT "id", "parent_thread_id" AS "parentThreadId",
+             "parent_message_id" AS "parentMessageId",
+             "highlighted_text" AS "highlightedText",
+             "summary", "knowledge", "depth"
+      FROM "threads"
+      WHERE "id" = ${startThreadId}
+
+      UNION ALL
+
+      SELECT t."id", t."parent_thread_id", t."parent_message_id",
+             t."highlighted_text", t."summary", t."knowledge", t."depth"
+      FROM "threads" t
+      JOIN chain c ON t."id" = c."parentThreadId"
+    )
+    SELECT * FROM chain
+    ORDER BY "depth" ASC
+  `;
+
+  return ancestors;
+}
+
+// ---------------------------------------------------------------------------
+// Ancestor context assembly (from batch data, no more waterfall)
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds ancestor context from the pre-fetched chain.
+ * No additional DB calls for thread metadata — everything came from the batch.
+ *
+ * Only makes ONE extra DB call: fetching the immediate parent's messages
+ * (needed for the verbatim recent messages window).
+ */
+async function buildAncestorContextFromChain(
+  ancestors: AncestorThread[],
+  branchMessageId: string,
+  highlightedText: string | null
+): Promise<{ context: ContextMessage[]; includedMessageIds: Set<string> }> {
+  const context: ContextMessage[] = [];
+  const includedMessageIds = new Set<string>();
+
+  if (ancestors.length === 0) {
+    return { context, includedMessageIds };
+  }
+
+  // Grandparent+ threads (all except the last one): knowledge-only
+  for (let i = 0; i < ancestors.length - 1; i++) {
+    const ancestor = ancestors[i];
+    const childHighlight = ancestors[i + 1]?.highlightedText ?? null;
+
+    const knowledge = ancestor.knowledge as ThreadKnowledge | null;
+    if (knowledge) {
+      context.push({
+        role: "system",
+        content: formatKnowledgeForContext(
+          knowledge,
+          `ancestor thread (depth ${ancestor.depth})`
+        ),
+      });
+    } else if (ancestor.summary) {
+      context.push({
+        role: "system",
+        content: `[Ancestor thread summary (depth ${ancestor.depth}): ${ancestor.summary}]`,
+      });
+    }
+
+    if (childHighlight) {
+      context.push({
+        role: "system",
+        content: `[A tangent was opened from this thread to explore: "${childHighlight}"]`,
+      });
+    }
+  }
+
+  // Immediate parent (last in the chain): knowledge + recent verbatim messages
+  const parent = ancestors[ancestors.length - 1];
+
+  // This is the only additional DB call — fetch parent's messages up to branch point
+  const parentMessages = await prisma.message.findMany({
+    where: { threadId: parent.id },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, role: true, content: true },
+  });
+
+  const cutoffIndex = parentMessages.findIndex(
+    (m) => m.id === branchMessageId
+  );
+  const relevantMessages = parentMessages.slice(0, cutoffIndex + 1);
+
+  const knowledge = parent.knowledge as ThreadKnowledge | null;
+  const hasCompressedContext = knowledge || parent.summary;
+  const isLongEnoughToCompress = relevantMessages.length > PARENT_RECENT_COUNT;
+
+  if (hasCompressedContext && isLongEnoughToCompress) {
+    if (knowledge) {
+      context.push({
+        role: "system",
+        content: formatKnowledgeForContext(
+          knowledge,
+          `parent thread (depth ${parent.depth})`
+        ),
+      });
+    } else if (parent.summary) {
+      context.push({
+        role: "system",
+        content: `[Summary of earlier conversation in parent thread: ${parent.summary}]`,
+      });
+    }
+
+    const recentMessages = relevantMessages.slice(-PARENT_RECENT_COUNT);
+    for (const msg of recentMessages) {
+      context.push({
+        role: msg.role.toLowerCase() as ContextMessage["role"],
+        content: msg.content,
+      });
+      includedMessageIds.add(msg.id);
+    }
+  } else {
+    for (const msg of relevantMessages) {
+      context.push({
+        role: msg.role.toLowerCase() as ContextMessage["role"],
+        content: msg.content,
+      });
+      includedMessageIds.add(msg.id);
+    }
+  }
+
+  if (highlightedText) {
+    context.push({
+      role: "system",
+      content:
+        `[Tangent thread opened. The user highlighted the following text to explore further: "${highlightedText}". ` +
+        `Focus your responses on this topic. Use the same formatting rules as the main thread — ` +
+        `all source citations must be clickable markdown links with real URLs, never plain text labels like [Source].]`,
+    });
+  }
+
+  return { context, includedMessageIds };
+}
+
+// ---------------------------------------------------------------------------
+// Current thread context
+// ---------------------------------------------------------------------------
+
+function buildCurrentThreadContext(
+  thread: {
+    messages: Array<{ id: string; role: string; content: string }>;
+    mergesAsTarget: Array<{
+      afterMessageId: string;
+      summary: string | null;
+      sourceThread: { knowledge: unknown; summary: string | null };
+    }>;
+  }
+): ContextMessage[] {
+  const context: ContextMessage[] = [];
   const mergeMap = buildMergeMap(thread.mergesAsTarget);
 
   for (const msg of thread.messages) {
@@ -99,7 +317,6 @@ export async function buildContextForThread(
       role: msg.role.toLowerCase() as ContextMessage["role"],
       content: msg.content,
     });
-    includedMessageIds.add(msg.id);
 
     const mergedContext = mergeMap.get(msg.id);
     if (mergedContext) {
@@ -107,245 +324,15 @@ export async function buildContextForThread(
     }
   }
 
-  // ── Step 3: Semantic retrieval from ancestor threads ───────────────
-  //
-  // This runs AFTER building the base context so we know which messages
-  // are already included and can deduplicate. Retrieved messages are
-  // injected as a clearly-labeled block before the current thread.
-
-  if (currentQuery && thread.parentThreadId) {
-    const ancestorIds = await getAncestorThreadIds(threadId);
-
-    if (ancestorIds.length > 0) {
-      const relevantMessages = await findRelevantAncestorMessages(
-        currentQuery,
-        ancestorIds,
-        SEMANTIC_RETRIEVAL_LIMIT,
-        Array.from(includedMessageIds)
-      );
-
-      if (relevantMessages.length > 0) {
-        // Insert the semantic retrieval block just before the current
-        // thread's messages (after ancestor context, before own messages)
-        const insertIndex = context.length - thread.messages.length;
-        const retrievalBlock = buildRetrievalBlock(relevantMessages);
-        context.splice(insertIndex, 0, ...retrievalBlock);
-      }
-    }
-  }
-
   return context;
-}
-
-// ---------------------------------------------------------------------------
-// Ancestor context assembly (hierarchical compression)
-// ---------------------------------------------------------------------------
-
-interface TaggedContextMessage {
-  contextMessage: ContextMessage;
-  messageId?: string; // present for verbatim messages, absent for system markers
-}
-
-/**
- * Builds compressed context for the immediate parent thread.
- *
- * If the parent has structured knowledge: injects it + last N verbatim messages.
- * If no knowledge available: falls back to plain summary + last N messages.
- * If neither: includes all messages up to the cutoff (short thread).
- *
- * For grandparent+ ancestors, recursively emits knowledge-only context.
- */
-async function buildAncestorContext(
-  parentThreadId: string,
-  parentMessageId: string,
-  highlightedText: string | null
-): Promise<TaggedContextMessage[]> {
-  const parentThread = await prisma.thread.findUnique({
-    where: { id: parentThreadId },
-    select: {
-      id: true,
-      parentThreadId: true,
-      parentMessageId: true,
-      highlightedText: true,
-      summary: true,
-      knowledge: true,
-      depth: true,
-    },
-  });
-
-  if (!parentThread) return [];
-
-  const result: TaggedContextMessage[] = [];
-
-  // Recurse into grandparent+ (knowledge-only compression)
-  if (parentThread.parentThreadId && parentThread.parentMessageId) {
-    const grandparentContext = await buildGrandparentContext(
-      parentThread.parentThreadId,
-      parentThread.highlightedText
-    );
-    result.push(...grandparentContext);
-  }
-
-  // Fetch parent messages up to the branch point
-  const parentMessages = await prisma.message.findMany({
-    where: { threadId: parentThreadId },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, role: true, content: true },
-  });
-
-  const cutoffIndex = parentMessages.findIndex(
-    (m) => m.id === parentMessageId
-  );
-  const relevantMessages = parentMessages.slice(0, cutoffIndex + 1);
-
-  // Determine compression strategy based on available data
-  const knowledge = parentThread.knowledge as ThreadKnowledge | null;
-  const hasCompressedContext = knowledge || parentThread.summary;
-  const isLongEnoughToCompress =
-    relevantMessages.length > PARENT_RECENT_COUNT;
-
-  if (hasCompressedContext && isLongEnoughToCompress) {
-    // Inject compressed older context
-    if (knowledge) {
-      result.push({
-        contextMessage: {
-          role: "system",
-          content: formatKnowledgeForContext(
-            knowledge,
-            `parent thread (depth ${parentThread.depth})`
-          ),
-        },
-      });
-    } else if (parentThread.summary) {
-      result.push({
-        contextMessage: {
-          role: "system",
-          content: `[Summary of earlier conversation in parent thread: ${parentThread.summary}]`,
-        },
-      });
-    }
-
-    // Include only the most recent messages verbatim
-    const recentMessages = relevantMessages.slice(-PARENT_RECENT_COUNT);
-    for (const msg of recentMessages) {
-      result.push({
-        contextMessage: {
-          role: msg.role.toLowerCase() as ContextMessage["role"],
-          content: msg.content,
-        },
-        messageId: msg.id,
-      });
-    }
-  } else {
-    // Thread is short or no compressed context available — include all
-    for (const msg of relevantMessages) {
-      result.push({
-        contextMessage: {
-          role: msg.role.toLowerCase() as ContextMessage["role"],
-          content: msg.content,
-        },
-        messageId: msg.id,
-      });
-    }
-  }
-
-  // Tangent focus marker
-  if (highlightedText) {
-    result.push({
-      contextMessage: {
-        role: "system",
-        content:
-          `[Tangent thread opened. The user highlighted the following text to explore further: "${highlightedText}". ` +
-          `Focus your responses on this topic. Use the same formatting rules as the main thread — ` +
-          `all source citations must be clickable markdown links with real URLs, never plain text labels like [Source].]`,
-      },
-    });
-  }
-
-  return result;
-}
-
-/**
- * Builds knowledge-only context for grandparent and higher ancestors.
- * Recursively walks up the tree, emitting only structured knowledge
- * (or plain summary as fallback) for each ancestor.
- */
-async function buildGrandparentContext(
-  threadId: string,
-  childHighlightedText: string | null
-): Promise<TaggedContextMessage[]> {
-  const thread = await prisma.thread.findUnique({
-    where: { id: threadId },
-    select: {
-      id: true,
-      parentThreadId: true,
-      highlightedText: true,
-      summary: true,
-      knowledge: true,
-      depth: true,
-    },
-  });
-
-  if (!thread) return [];
-
-  const result: TaggedContextMessage[] = [];
-
-  // Recurse to higher ancestors first (so context reads top-down)
-  if (thread.parentThreadId) {
-    const higherContext = await buildGrandparentContext(
-      thread.parentThreadId,
-      thread.highlightedText
-    );
-    result.push(...higherContext);
-  }
-
-  // Emit this ancestor's knowledge or summary
-  const knowledge = thread.knowledge as ThreadKnowledge | null;
-  if (knowledge) {
-    result.push({
-      contextMessage: {
-        role: "system",
-        content: formatKnowledgeForContext(
-          knowledge,
-          `ancestor thread (depth ${thread.depth})`
-        ),
-      },
-    });
-  } else if (thread.summary) {
-    result.push({
-      contextMessage: {
-        role: "system",
-        content: `[Ancestor thread summary (depth ${thread.depth}): ${thread.summary}]`,
-      },
-    });
-  }
-
-  // Note the tangent transition
-  if (childHighlightedText) {
-    result.push({
-      contextMessage: {
-        role: "system",
-        content: `[A tangent was opened from this thread to explore: "${childHighlightedText}"]`,
-      },
-    });
-  }
-
-  return result;
 }
 
 // ---------------------------------------------------------------------------
 // Semantic retrieval formatting
 // ---------------------------------------------------------------------------
 
-/**
- * Formats semantically retrieved messages into a labeled context block.
- */
 function buildRetrievalBlock(
-  messages: Array<{
-    role: string;
-    content: string;
-    similarity: number;
-  }>
+  messages: Array<{ role: string; content: string; similarity: number }>
 ): ContextMessage[] {
   const block: ContextMessage[] = [];
 
@@ -375,20 +362,11 @@ function buildRetrievalBlock(
 // Merged tangent handling
 // ---------------------------------------------------------------------------
 
-/**
- * Builds a map from afterMessageId → context messages for merged tangents.
- *
- * Prefers structured knowledge from the source thread when available,
- * falls back to the merge event's summary.
- */
 function buildMergeMap(
   merges: Array<{
     afterMessageId: string;
     summary: string | null;
-    sourceThread: {
-      knowledge: unknown;
-      summary: string | null;
-    };
+    sourceThread: { knowledge: unknown; summary: string | null };
   }>
 ): Map<string, ContextMessage[]> {
   const mergeMap = new Map<string, ContextMessage[]>();

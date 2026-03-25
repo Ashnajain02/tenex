@@ -88,19 +88,14 @@ interface RetrievedMessage {
  * @returns             - Messages sorted by descending similarity, above threshold
  */
 export async function findRelevantAncestorMessages(
-  query: string,
+  queryEmbedding: number[],
   threadIds: string[],
   limit: number = 8,
   excludeIds: string[] = []
 ): Promise<RetrievedMessage[]> {
   if (threadIds.length === 0) return [];
 
-  const { embedding } = await embed({
-    model: embeddingModel,
-    value: query.slice(0, 8000),
-  });
-
-  const vectorString = `[${embedding.join(",")}]`;
+  const vectorString = `[${queryEmbedding.join(",")}]`;
 
   // Build the query — scoped to ancestor threads, above similarity threshold,
   // excluding messages already present in the context window
