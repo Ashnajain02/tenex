@@ -86,7 +86,7 @@ function MessageVisual({ progress }: { progress: number }) {
     <div className="flex flex-col items-center gap-3">
       {/* User message bubble */}
       <div
-        className="rounded-2xl px-5 py-3 text-sm max-w-[280px]"
+        className="rounded-2xl px-5 py-3 text-sm max-w-[240px] sm:max-w-[280px]"
         style={{
           background: "var(--color-bg-user-msg)",
           border: "1px solid var(--color-border-subtle)",
@@ -133,7 +133,7 @@ function TreeVisual({ progress }: { progress: number }) {
   const revealCount = Math.floor(progress * (nodes.length + 1));
 
   return (
-    <svg viewBox="0 0 100 116" className="w-full max-w-[260px]" style={{ overflow: "visible" }}>
+    <svg viewBox="0 0 100 116" className="w-full max-w-[200px] sm:max-w-[260px]" style={{ overflow: "visible" }}>
       {/* Connecting lines */}
       {nodes.slice(1).map((node, i) => (
         <line
@@ -206,7 +206,7 @@ function EmbeddingVisual({ progress }: { progress: number }) {
   ];
 
   return (
-    <div className="space-y-1.5 w-full max-w-[280px]">
+    <div className="space-y-1.5 w-full max-w-[240px] sm:max-w-[280px]">
       {messages.map((msg, i) => {
         const delay = i * 0.12;
         const visible = progress > delay;
@@ -253,7 +253,7 @@ function CompressVisual({ progress }: { progress: number }) {
   ];
 
   return (
-    <div className="space-y-3 w-full max-w-[280px]">
+    <div className="space-y-3 w-full max-w-[240px] sm:max-w-[280px]">
       {tiers.map((tier, i) => {
         const delay = i * 0.2;
         const visible = progress > delay;
@@ -310,7 +310,7 @@ function KnowledgeVisual({ progress }: { progress: number }) {
 
   return (
     <div
-      className="w-full max-w-[280px] rounded-xl overflow-hidden border"
+      className="w-full max-w-[240px] sm:max-w-[280px] rounded-xl overflow-hidden border"
       style={{ borderColor: "var(--color-border)", background: "var(--color-bg-elevated)" }}
     >
       {/* JSON header */}
@@ -355,7 +355,7 @@ function StreamVisual({ progress }: { progress: number }) {
   const wordCount = Math.floor(progress * words.length * 1.2);
 
   return (
-    <div className="w-full max-w-[280px] space-y-3">
+    <div className="w-full max-w-[240px] sm:max-w-[280px] space-y-3">
       {/* Streaming response */}
       <div className="flex items-start gap-2">
         <div
@@ -448,8 +448,8 @@ export function ArchitectureFlow() {
       <div className="sticky top-0" style={{ height: "100vh" }}>
         <div className="h-full flex flex-col">
 
-          {/* ── Header — compact, always visible ── */}
-          <div className="shrink-0 pt-16 pb-4 md:pt-20 md:pb-6 text-center px-6">
+          {/* ── Header — hidden on mobile to save space, visible on md+ ── */}
+          <div className="shrink-0 hidden md:block pt-20 pb-6 text-center px-6">
             <p
               className="text-xs font-semibold uppercase tracking-widest mb-2"
               style={{ color: "var(--color-accent)" }}
@@ -457,7 +457,7 @@ export function ArchitectureFlow() {
               Under the Hood
             </p>
             <h2
-              className="text-xl font-bold tracking-tight sm:text-2xl md:text-3xl"
+              className="text-2xl font-bold tracking-tight md:text-3xl"
               style={{ color: "var(--color-text-primary)" }}
             >
               Follow a message through the pipeline
@@ -465,7 +465,7 @@ export function ArchitectureFlow() {
           </div>
 
           {/* ── Stage content — fills remaining space ── */}
-          <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-6 pb-16">
+          <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-4 sm:px-6 pt-14 md:pt-0 pb-14">
             <div className="w-full max-w-4xl">
               {STAGES.map((stage, i) => {
                 const isActive = i === activeIndex;
@@ -482,34 +482,44 @@ export function ArchitectureFlow() {
                       display: isActive ? "block" : "none",
                     }}
                   >
-                    {/* Step label + title row */}
-                    <div className="flex items-baseline gap-3 mb-4">
+                    {/* Mobile-only section label (shown on first stage) */}
+                    {i === 0 && (
+                      <p
+                        className="md:hidden text-[10px] font-semibold uppercase tracking-widest mb-3"
+                        style={{ color: "var(--color-accent)" }}
+                      >
+                        Under the Hood
+                      </p>
+                    )}
+
+                    {/* Step label + title */}
+                    <div className="flex items-baseline gap-2 sm:gap-3 mb-2 sm:mb-4">
                       <span
-                        className="text-xs font-mono font-semibold shrink-0"
+                        className="text-[10px] sm:text-xs font-mono font-semibold shrink-0"
                         style={{ color: "var(--color-accent)" }}
                       >
                         {stage.label}
                       </span>
                       <h3
-                        className="text-lg font-bold tracking-tight sm:text-xl md:text-2xl"
+                        className="text-base font-bold tracking-tight sm:text-xl md:text-2xl"
                         style={{ color: "var(--color-text-primary)" }}
                       >
                         {stage.title}
                       </h3>
                     </div>
 
-                    {/* Two-column on md+, stacked on mobile */}
-                    <div className="flex flex-col md:flex-row gap-6 md:gap-10">
-                      {/* Left: description */}
+                    {/* Desktop: side-by-side. Mobile: description then visual, compact. */}
+                    <div className="flex flex-col md:flex-row gap-3 sm:gap-4 md:gap-10">
+                      {/* Description */}
                       <div className="md:w-2/5 shrink-0">
                         <p
-                          className="text-sm leading-relaxed mb-3"
+                          className="text-xs sm:text-sm leading-relaxed mb-2 sm:mb-3"
                           style={{ color: "var(--color-text-secondary)" }}
                         >
                           {stage.description}
                         </p>
                         <div
-                          className="rounded-lg px-3 py-2 text-xs sm:text-sm inline-block"
+                          className="rounded-md sm:rounded-lg px-2.5 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-sm inline-block"
                           style={{
                             background: "var(--color-accent-subtle)",
                             border: "1px solid var(--color-accent-border)",
@@ -521,8 +531,8 @@ export function ArchitectureFlow() {
                         </div>
                       </div>
 
-                      {/* Right: visual */}
-                      <div className="flex-1 flex items-center justify-center">
+                      {/* Visual — constrained height on mobile */}
+                      <div className="flex-1 flex items-center justify-center max-h-[35vh] md:max-h-none overflow-hidden">
                         <StageVisual
                           visual={stage.visual}
                           progress={stageProgress2}
